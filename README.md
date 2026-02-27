@@ -1,73 +1,78 @@
-# React + TypeScript + Vite
+# Jarvis Mission Control
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Jarvis Mission Control is an oversight dashboard for AI agents with:
+- Agent registry and status controls
+- Human approval inbox
+- Event ingest API and command queue
+- Spend tracking with budget controls
 
-Currently, two official plugins are available:
+The frontend is React + Vite, and the backend is FastAPI connected to Supabase Postgres.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Project Structure
 
-## React Compiler
+- `frontend/` React + Vite app
+- `backend/app/` FastAPI backend
+- `backend/sql/schema.sql` Supabase schema
+- `Jarvis_Mission_Control_PRD.md` product requirements and implementation status
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 1) Backend Setup
 
-## Expanding the ESLint configuration
+1. Apply `backend/sql/schema.sql` in Supabase SQL Editor.
+2. Configure env:
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+cd backend
+cp .env.example .env
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+3. Set DB configuration in `.env`:
+- Option A: `DATABASE_URL` (password must be URL-encoded)
+- Option B: `SUPABASE_DB_*` fields (recommended for special characters in password)
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+4. Run backend:
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
+
+Backend docs: `http://localhost:8000/docs`
+
+## 2) Frontend Setup
+
+1. Configure API base URL:
+
+```bash
+cd frontend
+cp .env.example .env.local
+```
+
+2. Run frontend:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Frontend default URL: `http://localhost:5173`
+
+## API Surface (MVP)
+
+- `GET /v1/agents`
+- `POST /v1/agents`
+- `GET /v1/agents/{id}`
+- `PATCH /v1/agents/{id}/status`
+- `POST /v1/agents/{id}/revoke-token`
+- `GET /v1/agents/{id}/events`
+- `GET /v1/events`
+- `POST /v1/events` (`X-Agent-Token` required)
+- `GET /v1/inbox`
+- `POST /v1/inbox/{id}/decision`
+- `GET /v1/spend`
+- `PATCH /v1/spend/budget`
+- `GET /v1/commands` (`X-Agent-Token` required)
+- `POST /v1/commands/{id}/ack` (`X-Agent-Token` required)

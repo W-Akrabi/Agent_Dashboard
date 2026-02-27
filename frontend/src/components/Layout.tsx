@@ -18,10 +18,9 @@ import {
   FileText, 
   LogOut, 
   Menu,
-  Bell,
-  Sparkles
+  Bell
 } from 'lucide-react';
-import { getPendingApprovalsCount } from '@/data/mockData';
+import { getInbox } from '@/lib/api';
 
 const sidebarItems = [
   { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
@@ -44,7 +43,7 @@ export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [pendingCount] = useState(() => getPendingApprovalsCount());
+  const [pendingCount, setPendingCount] = useState(0);
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -53,6 +52,31 @@ export default function Layout() {
     };
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadPendingCount = async () => {
+      try {
+        const pendingItems = await getInbox('pending');
+        if (!cancelled) {
+          setPendingCount(pendingItems.length);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Failed to load pending approvals:', error);
+        }
+      }
+    };
+
+    loadPendingCount();
+    const intervalId = window.setInterval(loadPendingCount, 15000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
   }, []);
 
   const isActive = (path: string) => {
@@ -130,13 +154,6 @@ export default function Layout() {
           >
             <LogOut className="w-4 h-4" />
             <span>Sign out</span>
-          </button>
-          <button
-            onClick={() => navigate('/mission-control')}
-            className="flex items-center gap-2 text-[#A7ACBF] hover:text-white transition-colors text-sm mt-3"
-          >
-            <Sparkles className="w-4 h-4" />
-            <span>All Features</span>
           </button>
         </div>
       </aside>

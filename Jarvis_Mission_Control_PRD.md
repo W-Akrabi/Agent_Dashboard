@@ -68,7 +68,7 @@ Users running AI agents today face:
 - ✅ As a user, I can approve or reject that action.  
   *→ Approve / Reject buttons with optional comment field in Inbox*
 - ✅ As a user, my decision is sent back to the agent.  
-  *→ Decision updates item status (simulated; real backend connector ready)*
+  *→ Decision updates inbox item and creates command in `/v1/commands`*
 
 ### Cost Awareness
 - ✅ As a user, I can see how much I've spent today.  
@@ -92,7 +92,7 @@ Users running AI agents today face:
 
 ### 6.1 Authentication
 - ❌ Email/password or OAuth — *Not implemented (MVP frontend focus)*  
-- ❌ Each user has isolated workspace — *Not implemented (no backend)*
+- ⚠️ Each user has isolated workspace — *Backend has `users` table, but multi-tenant auth isolation is not implemented*
 
 ### 6.2 Agent Registration
 - ✅ User can create a new agent — *"Register Agent" button + modal on Dashboard*
@@ -100,18 +100,18 @@ Users running AI agents today face:
 - ✅ Generate `agent_token` — *32-char token generated and shown once with copy button*
 
 Agent uses:
-- ⚠️ `POST /v1/events` — *Documented in The Glue; no live backend (mock)*
-- ⚠️ `GET /v1/commands` — *Documented; no live backend (mock)*
+- ✅ `POST /v1/events` — *Implemented in FastAPI with token auth + Supabase persistence*
+- ✅ `GET /v1/commands` — *Implemented in FastAPI with token auth*
 
 ### 6.3 Event Ingest API (Core Engine)
-- ⚠️ `POST /v1/events` endpoint — *Interface documented in The Glue section; mock frontend*  
-- ⚠️ Stores event — *Mock data only; no DB*
-- ⚠️ Broadcasts via realtime — *Mock feed; no WebSocket*
-- ⚠️ If requires_approval → creates inbox item — *Logic simulated in Inbox state*
+- ✅ `POST /v1/events` endpoint — *Implemented in `backend/app/main.py`*  
+- ✅ Stores event — *Persisted in Supabase `events` table*
+- ❌ Broadcasts via realtime — *WebSocket/realtime push not implemented*
+- ✅ If requires_approval → creates inbox item — *Creates `tasks` row and updates agent status*
 
 ### 6.4 Command Retrieval API
-- ⚠️ `GET /v1/commands?since=timestamp` — *Not implemented (no backend)*
-- ⚠️ `POST /v1/commands/{id}/ack` — *Not implemented (no backend)*
+- ✅ `GET /v1/commands?since=timestamp` — *Implemented; returns pending commands for authenticated agent token*
+- ✅ `POST /v1/commands/{id}/ack` — *Implemented; marks command as acked*
 
 ### 6.5 Dashboard (Home Screen)
 - ✅ Active agent count — *"Active Agents" stat card*
@@ -150,57 +150,58 @@ Agent uses:
 ## 7. Non-Functional Requirements
 
 ### Security
-- ❌ Agent tokens hashed in DB — *No DB (frontend mock)*
+- ✅ Agent tokens hashed in DB — *SHA-256 token hashes stored in `agent_tokens`*
 - ✅ Tokens only shown once on registration — *Copy-once modal in Agent Registration*
 - ❌ Rate limit per token — *No backend*
-- ❌ TLS only — *No backend (dev server)*
+- ⚠️ TLS only — *Supabase Postgres uses TLS; local FastAPI dev server can run without TLS*
 - ❌ Event idempotency — *No backend*
 
 ### Reliability
 - ❌ Agents retry failed POSTs — *No backend*
 - ❌ Server supports idempotent writes — *No backend*
-- ❌ No event loss on retry — *No backend*
+- ⚠️ No event loss on retry — *Events are persisted in Postgres; dedupe/idempotency key still not implemented*
 
 ### Performance
 - ✅ Dashboard loads < 2 seconds — *Vite + React SPA, near-instant*
-- ⚠️ Feed updates < 1 second — *Static mock; real WebSocket not connected*
+- ⚠️ Feed updates < 1 second — *Loads from backend API; no realtime push channel yet*
 
 ---
 
 ## 8. Architecture Overview
 
 ### Agent Side
-- ⚠️ Sends events via HTTPS — *Documented endpoint; no live backend*
-- ⚠️ Polls for commands — *Not implemented*
+- ✅ Sends events via HTTPS — *Live `POST /v1/events` endpoint implemented*
+- ✅ Polls for commands — *Live `GET /v1/commands` + `POST /v1/commands/{id}/ack` implemented*
 
 ### Jarvis Backend
-- ❌ REST API — *Not implemented (frontend mock only)*
-- ❌ Postgres DB — *Not implemented*
+- ✅ REST API — *Implemented with FastAPI in `backend/app/main.py`*
+- ✅ Postgres DB — *Supabase schema in `backend/sql/schema.sql`*
 - ❌ Realtime subscription layer — *Not implemented*
 - ❌ Background worker — *Not implemented*
 
 ### Frontend
-- ✅ Realtime feed subscription — *Simulated with mock data*
-- ✅ Approval actions — *Full approve/reject/comment in Inbox*
-- ✅ Spend visualizations — *Budget bar, per-agent breakdown, stat cards*
+- ⚠️ Realtime feed subscription — *Feed now loads from backend API but not via websocket subscription*
+- ✅ Approval actions — *Approve/reject/comment wired to backend inbox + command APIs*
+- ✅ Spend visualizations — *Budget bar, per-agent breakdown, stat cards now backed by API data*
 
 ---
 
 ## 9. Data Model (MVP)
 
-### users ⚠️ *Frontend types only — no DB*
-- ✅ `id`, `email`, `monthly_budget` — *Modeled in TypeScript types*
+### users ✅ *Persisted in Supabase Postgres*
+- ✅ `id`, `email`, `monthly_budget` — *Backed by DB table + budget update API*
 
-### agents ✅ *Fully typed + mock data*
+### agents ✅ *Persisted in Supabase Postgres*
 - ✅ `id`, `name`, `status`, `totalSpend`, `lastSeen`, `tokenHash`, `eventsCount`
 
-### events ✅ *Fully typed + mock data (AgentEvent)*
+### events ✅ *Persisted in Supabase Postgres*
 - ✅ `id`, `agentId`, `type`, `message`, `cost`, `createdAt`
 
-### tasks ✅ *Fully typed + mock data (InboxItem)*
+### tasks ✅ *Persisted in Supabase Postgres*
 - ✅ `id`, `agentId`, `proposedAction`, `status`, `comment`, `createdAt`
 
-### commands ❌ *Not implemented — requires backend*
+### commands ✅ *Persisted in Supabase Postgres*
+- ✅ `id`, `agent_id`, `source_task_id`, `kind`, `payload`, `status`, `created_at`, `acked_at`
 
 ---
 
@@ -209,8 +210,8 @@ Agent uses:
 - ✅ Users can connect an agent in < 5 minutes — *Register modal generates creds instantly*
 - ⚠️ At least 70% of users check dashboard weekly — *Metric; requires analytics*
 - ✅ Approval loop works reliably — *Inbox approve/reject fully functional*
-- ⚠️ No critical data loss incidents — *No persistent storage yet*
-- ⚠️ Spend tracking matches provider dashboards within 5% — *Mock data; real sync needs backend*
+- ✅ No critical data loss incidents — *Core operational data persisted in Supabase Postgres*
+- ⚠️ Spend tracking matches provider dashboards within 5% — *Current spend derived from ingested event costs, not direct provider reconciliation*
 
 ---
 
@@ -239,6 +240,17 @@ Jarvis is:
 Jarvis is:
 
 > **The oversight layer for autonomous systems.**
+
+---
+
+## 13. Implementation Update (February 27, 2026)
+
+- ✅ Repository structure separated into `frontend/` (React app) and `backend/` (FastAPI service).
+- ✅ Python backend added under `backend/app` using FastAPI.
+- ✅ Supabase Postgres schema added under `backend/sql/schema.sql`.
+- ✅ Frontend core pages (`Dashboard`, `Agents`, `AgentDetail`, `Inbox`, `Spend`, sidebar badge) moved from local mocks to API calls.
+- ✅ Implemented API routes for agent lifecycle, event ingest, inbox decisions, spend aggregation, and command polling/ack.
+- ⚠️ Realtime push (WebSocket/Supabase Realtime), rate limiting, and idempotency keys remain future work.
 
 ---
 

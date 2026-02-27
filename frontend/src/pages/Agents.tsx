@@ -1,19 +1,19 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  Bot, 
-  Plus, 
-  Play, 
-  Pause, 
-  AlertCircle, 
-  Clock, 
+import {
+  Bot,
+  Plus,
+  Play,
+  Pause,
+  AlertCircle,
+  Clock,
   Inbox,
   Search,
   Copy,
-  Check
+  Check,
 } from 'lucide-react';
-import { mockAgents } from '@/data/mockData';
 import type { Agent } from '@/types/index';
+import { createAgent, getAgents, updateAgentStatus } from '@/lib/api';
 import {
   Dialog,
   DialogContent,
@@ -31,53 +31,75 @@ const statusConfig = {
 };
 
 export default function Agents() {
-  const [agents, setAgents] = useState<Agent[]>(mockAgents);
+  const [agents, setAgents] = useState<Agent[]>([]);
   const [search, setSearch] = useState('');
   const [showNewAgentModal, setShowNewAgentModal] = useState(false);
   const [newAgentName, setNewAgentName] = useState('');
   const [newAgentDescription, setNewAgentDescription] = useState('');
   const [generatedToken, setGeneratedToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const filteredAgents = agents.filter(agent => 
-    agent.name.toLowerCase().includes(search.toLowerCase()) ||
-    agent.description?.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const toggleAgentStatus = (agentId: string) => {
-    setAgents(prev => prev.map(agent => {
-      if (agent.id === agentId) {
-        const newStatus = agent.status === 'running' ? 'paused' : 'running';
-        return { ...agent, status: newStatus };
-      }
-      return agent;
-    }));
+  const loadAgents = async () => {
+    try {
+      setError(null);
+      const response = await getAgents();
+      setAgents(response);
+    } catch (loadError) {
+      console.error(loadError);
+      setError(loadError instanceof Error ? loadError.message : 'Failed to load agents.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleCreateAgent = () => {
+  useEffect(() => {
+    loadAgents();
+  }, []);
+
+  const filteredAgents = agents.filter(
+    (agent) =>
+      agent.name.toLowerCase().includes(search.toLowerCase()) ||
+      agent.description?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const toggleAgentStatus = async (agentId: string) => {
+    const target = agents.find((agent) => agent.id === agentId);
+    if (!target) return;
+
+    const newStatus: Agent['status'] = target.status === 'running' ? 'paused' : 'running';
+    try {
+      const updated = await updateAgentStatus(agentId, newStatus);
+      setAgents((prev) => prev.map((agent) => (agent.id === agentId ? updated : agent)));
+    } catch (toggleError) {
+      console.error(toggleError);
+      setError(toggleError instanceof Error ? toggleError.message : 'Failed to update agent status.');
+    }
+  };
+
+  const handleCreateAgent = async () => {
     if (!newAgentName.trim()) return;
-    
-    const newAgent: Agent = {
-      id: `agent-${Date.now()}`,
-      name: newAgentName,
-      description: newAgentDescription,
-      status: 'idle',
-      totalSpend: 0,
-      lastSeen: new Date().toISOString(),
-      tokenHash: `tok_${Math.random().toString(36).substring(2, 15)}`,
-      eventsCount: 0,
-      createdAt: new Date().toISOString(),
-    };
-    
-    setAgents(prev => [...prev, newAgent]);
-    setGeneratedToken(newAgent.tokenHash);
+
+    try {
+      setError(null);
+      const response = await createAgent({
+        name: newAgentName.trim(),
+        description: newAgentDescription.trim() || undefined,
+      });
+      setAgents((prev) => [response.agent, ...prev]);
+      setGeneratedToken(response.agentToken);
+    } catch (createError) {
+      console.error(createError);
+      setError(createError instanceof Error ? createError.message : 'Failed to create agent.');
+    }
   };
 
   const copyToken = () => {
     if (generatedToken) {
-      navigator.clipboard.writeText(generatedToken);
+      void navigator.clipboard.writeText(generatedToken);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      window.setTimeout(() => setCopied(false), 2000);
     }
   };
 
@@ -89,9 +111,22 @@ export default function Agents() {
     setShowNewAgentModal(false);
   };
 
+  if (isLoading) {
+    return (
+      <div className="data-card p-8 text-center">
+        <p className="text-[#A7ACBF]">Loading agents...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {error && (
+        <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/30 text-red-300 text-sm">
+          {error}
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h2 className="text-2xl font-bold">Your Agents</h2>
         <Dialog open={showNewAgentModal} onOpenChange={setShowNewAgentModal}>
@@ -105,20 +140,20 @@ export default function Agents() {
             <DialogHeader>
               <DialogTitle>{generatedToken ? 'Agent Created' : 'Register New Agent'}</DialogTitle>
             </DialogHeader>
-            
+
             {generatedToken ? (
               <div className="space-y-4">
                 <div className="p-4 rounded-lg bg-green-400/10 border border-green-400/30">
                   <p className="text-sm text-green-400 mb-2">Agent created successfully!</p>
                   <p className="text-xs text-[#A7ACBF]">
-                    Copy this token now. You won't be able to see it again.
+                    Copy this token now. You won&apos;t be able to see it again.
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <code className="flex-1 p-3 bg-white/5 rounded-lg text-sm font-mono break-all">
                     {generatedToken}
                   </code>
-                  <button 
+                  <button
                     onClick={copyToken}
                     className="p-3 bg-[#4F46E5] rounded-lg hover:bg-[#4338CA] transition-colors"
                   >
@@ -136,7 +171,7 @@ export default function Agents() {
                   <input
                     type="text"
                     value={newAgentName}
-                    onChange={(e) => setNewAgentName(e.target.value)}
+                    onChange={(event) => setNewAgentName(event.target.value)}
                     placeholder="e.g., Research Assistant"
                     className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-[#4F46E5]"
                   />
@@ -145,14 +180,14 @@ export default function Agents() {
                   <label className="block text-sm text-[#A7ACBF] mb-2">Description (optional)</label>
                   <textarea
                     value={newAgentDescription}
-                    onChange={(e) => setNewAgentDescription(e.target.value)}
+                    onChange={(event) => setNewAgentDescription(event.target.value)}
                     placeholder="What does this agent do?"
                     rows={3}
                     className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-[#4F46E5] resize-none"
                   />
                 </div>
-                <button 
-                  onClick={handleCreateAgent}
+                <button
+                  onClick={() => void handleCreateAgent()}
                   disabled={!newAgentName.trim()}
                   className="w-full btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -164,21 +199,19 @@ export default function Agents() {
         </Dialog>
       </div>
 
-      {/* Search */}
       <div className="relative">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#A7ACBF]" />
         <input
           type="text"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(event) => setSearch(event.target.value)}
           placeholder="Search agents..."
           className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-[#4F46E5]"
         />
       </div>
 
-      {/* Agents Grid */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredAgents.map(agent => {
+        {filteredAgents.map((agent) => {
           const status = statusConfig[agent.status];
           const StatusIcon = status.icon;
 
@@ -197,8 +230,8 @@ export default function Agents() {
                     </span>
                   </div>
                 </div>
-                <button 
-                  onClick={() => toggleAgentStatus(agent.id)}
+                <button
+                  onClick={() => void toggleAgentStatus(agent.id)}
                   className="p-2 hover:bg-white/5 rounded-lg transition-colors"
                 >
                   {agent.status === 'running' ? (
@@ -209,9 +242,7 @@ export default function Agents() {
                 </button>
               </div>
 
-              {agent.description && (
-                <p className="text-sm text-[#A7ACBF] mb-4 line-clamp-2">{agent.description}</p>
-              )}
+              {agent.description && <p className="text-sm text-[#A7ACBF] mb-4 line-clamp-2">{agent.description}</p>}
 
               <div className="grid grid-cols-2 gap-4 text-sm mb-4">
                 <div>
@@ -228,10 +259,7 @@ export default function Agents() {
                 <span className="text-xs text-[#A7ACBF]">
                   Last seen: {new Date(agent.lastSeen).toLocaleDateString()}
                 </span>
-                <Link 
-                  to={`/agents/${agent.id}`}
-                  className="text-xs text-[#4F46E5] hover:underline"
-                >
+                <Link to={`/agents/${agent.id}`} className="text-xs text-[#4F46E5] hover:underline">
                   Details →
                 </Link>
               </div>
@@ -255,3 +283,4 @@ export default function Agents() {
     </div>
   );
 }
+

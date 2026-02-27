@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { 
-  Bot, 
-  Play, 
-  Pause, 
-  AlertCircle, 
-  Clock, 
+import {
+  Bot,
+  Play,
+  Pause,
+  AlertCircle,
+  Clock,
   Inbox,
   ArrowLeft,
   Trash2,
@@ -13,10 +13,10 @@ import {
   Copy,
   Check,
   DollarSign,
-  Activity
+  Activity,
 } from 'lucide-react';
-import { mockAgents, getAgentEvents } from '@/data/mockData';
-import type { Agent } from '@/types/index';
+import type { Agent, AgentEvent } from '@/types/index';
+import { getAgent, getAgentEvents, revokeAgentToken, updateAgentStatus } from '@/lib/api';
 import {
   Dialog,
   DialogContent,
@@ -44,10 +44,44 @@ const eventTypeConfig = {
 export default function AgentDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [agent, setAgent] = useState<Agent | undefined>(mockAgents.find(a => a.id === id));
-  const [events] = useState(getAgentEvents(id || ''));
+  const [agent, setAgent] = useState<Agent | undefined>(undefined);
+  const [events, setEvents] = useState<AgentEvent[]>([]);
   const [copied, setCopied] = useState(false);
   const [showRevokeDialog, setShowRevokeDialog] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!id) {
+      setError('Missing agent id.');
+      setIsLoading(false);
+      return;
+    }
+
+    const loadData = async () => {
+      try {
+        setError(null);
+        const [agentResponse, eventsResponse] = await Promise.all([getAgent(id), getAgentEvents(id)]);
+        setAgent(agentResponse);
+        setEvents(eventsResponse);
+      } catch (loadError) {
+        console.error(loadError);
+        setError(loadError instanceof Error ? loadError.message : 'Failed to load agent details.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+  }, [id]);
+
+  if (isLoading) {
+    return (
+      <div className="data-card p-8 text-center">
+        <p className="text-[#A7ACBF]">Loading agent...</p>
+      </div>
+    );
+  }
 
   if (!agent) {
     return (
@@ -56,7 +90,7 @@ export default function AgentDetail() {
           <AlertCircle className="w-8 h-8 text-red-400" />
         </div>
         <h3 className="text-lg font-medium mb-2">Agent not found</h3>
-        <p className="text-[#A7ACBF] mb-4">The agent you're looking for doesn't exist.</p>
+        <p className="text-[#A7ACBF] mb-4">{error || "The agent you're looking for doesn't exist."}</p>
         <Link to="/agents" className="btn-primary">
           Back to Agents
         </Link>
@@ -67,32 +101,47 @@ export default function AgentDetail() {
   const status = statusConfig[agent.status];
   const StatusIcon = status.icon;
 
-  const toggleStatus = () => {
-    const newStatus = agent.status === 'running' ? 'paused' : 'running';
-    setAgent({ ...agent, status: newStatus });
+  const toggleStatus = async () => {
+    const newStatus: Agent['status'] = agent.status === 'running' ? 'paused' : 'running';
+    try {
+      const updated = await updateAgentStatus(agent.id, newStatus);
+      setAgent(updated);
+    } catch (toggleError) {
+      console.error(toggleError);
+      setError(toggleError instanceof Error ? toggleError.message : 'Failed to update status.');
+    }
   };
 
   const copyToken = () => {
-    navigator.clipboard.writeText(agent.tokenHash);
+    void navigator.clipboard.writeText(agent.tokenHash);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    window.setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleRevoke = () => {
-    // In a real app, this would revoke the token
-    setShowRevokeDialog(false);
-    navigate('/agents');
+  const handleRevoke = async () => {
+    try {
+      await revokeAgentToken(agent.id);
+      setShowRevokeDialog(false);
+      navigate('/agents');
+    } catch (revokeError) {
+      console.error(revokeError);
+      setError(revokeError instanceof Error ? revokeError.message : 'Failed to revoke token.');
+    }
   };
 
   return (
     <div className="space-y-6">
-      {/* Back Link */}
+      {error && (
+        <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/30 text-red-300 text-sm">
+          {error}
+        </div>
+      )}
+
       <Link to="/agents" className="inline-flex items-center gap-2 text-[#A7ACBF] hover:text-white transition-colors">
         <ArrowLeft className="w-4 h-4" />
         Back to Agents
       </Link>
 
-      {/* Agent Header */}
       <div className="data-card p-6">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
@@ -114,14 +163,18 @@ export default function AgentDetail() {
           </div>
 
           <div className="flex items-center gap-3">
-            <button 
-              onClick={toggleStatus}
+            <button
+              onClick={() => void toggleStatus()}
               className={`btn-primary flex items-center gap-2 ${agent.status === 'running' ? 'bg-yellow-500 hover:bg-yellow-600' : ''}`}
             >
               {agent.status === 'running' ? (
-                <><Pause className="w-4 h-4" /> Pause</>
+                <>
+                  <Pause className="w-4 h-4" /> Pause
+                </>
               ) : (
-                <><Play className="w-4 h-4" /> Resume</>
+                <>
+                  <Play className="w-4 h-4" /> Resume
+                </>
               )}
             </button>
             <Dialog open={showRevokeDialog} onOpenChange={setShowRevokeDialog}>
@@ -142,7 +195,7 @@ export default function AgentDetail() {
                     This will immediately stop the agent from accessing the API. This action cannot be undone.
                   </p>
                   <div className="flex gap-3">
-                    <button onClick={handleRevoke} className="flex-1 btn-primary bg-red-500 hover:bg-red-600">
+                    <button onClick={() => void handleRevoke()} className="flex-1 btn-primary bg-red-500 hover:bg-red-600">
                       Revoke Token
                     </button>
                     <button onClick={() => setShowRevokeDialog(false)} className="flex-1 btn-secondary">
@@ -155,12 +208,9 @@ export default function AgentDetail() {
           </div>
         </div>
 
-        {agent.description && (
-          <p className="mt-4 text-[#A7ACBF]">{agent.description}</p>
-        )}
+        {agent.description && <p className="mt-4 text-[#A7ACBF]">{agent.description}</p>}
       </div>
 
-      {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="data-card p-5">
           <div className="flex items-center justify-between mb-3">
@@ -205,30 +255,23 @@ export default function AgentDetail() {
         </div>
       </div>
 
-      {/* Token Section */}
       <div className="data-card p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold">Agent Token</h3>
-          <button 
-            onClick={copyToken}
-            className="flex items-center gap-2 text-sm text-[#4F46E5] hover:underline"
-          >
+          <button onClick={copyToken} className="flex items-center gap-2 text-sm text-[#4F46E5] hover:underline">
             {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
             {copied ? 'Copied!' : 'Copy'}
           </button>
         </div>
-        <code className="block p-4 bg-white/5 rounded-lg text-sm font-mono break-all">
-          {agent.tokenHash}
-        </code>
+        <code className="block p-4 bg-white/5 rounded-lg text-sm font-mono break-all">{agent.tokenHash}</code>
         <p className="mt-2 text-xs text-[#A7ACBF]">
-          Use this token to authenticate your agent with the Jarvis API.
+          Stored token values are masked for safety. Keep the original token from registration for agent auth.
         </p>
       </div>
 
-      {/* Event History */}
       <div className="data-card p-6">
         <h3 className="font-semibold mb-4">Event History</h3>
-        
+
         {events.length === 0 ? (
           <div className="text-center py-8">
             <RefreshCw className="w-8 h-8 text-[#A7ACBF] mx-auto mb-2" />
@@ -236,16 +279,14 @@ export default function AgentDetail() {
           </div>
         ) : (
           <div className="space-y-3 max-h-[400px] overflow-y-auto">
-            {events.map(event => {
+            {events.map((event) => {
               const typeConfig = eventTypeConfig[event.type];
-              
+
               return (
                 <div key={event.id} className="p-4 rounded-lg border border-white/5 bg-white/[0.02]">
                   <div className="flex items-center justify-between mb-2">
                     <span className={`text-xs ${typeConfig.color}`}>{typeConfig.label}</span>
-                    <span className="text-xs text-[#A7ACBF]">
-                      {new Date(event.createdAt).toLocaleString()}
-                    </span>
+                    <span className="text-xs text-[#A7ACBF]">{new Date(event.createdAt).toLocaleString()}</span>
                   </div>
                   <p className="text-sm text-[#A7ACBF] mb-2">{event.message}</p>
                   <span className="text-xs font-mono text-[#4F46E5]">${event.cost.toFixed(2)}</span>
@@ -258,3 +299,4 @@ export default function AgentDetail() {
     </div>
   );
 }
+

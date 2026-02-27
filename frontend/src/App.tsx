@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -21,8 +21,6 @@ import { KeyVault } from './views/KeyVault';
 import { IngestApi } from './views/IngestApi';
 
 gsap.registerPlugin(ScrollTrigger);
-
-const LegacyMissionControl = lazy(() => import('./legacy/LegacyMissionControl'));
 
 export default function App() {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -66,20 +64,6 @@ export default function App() {
           <Route path="/key-vault" element={<KeyVault />} />
           <Route path="/glue" element={<IngestApi />} />
         </Route>
-        <Route
-          path="/mission-control"
-          element={
-            <Suspense
-              fallback={
-                <div className="fixed inset-0 bg-[#05060B] flex items-center justify-center z-50">
-                  <div className="w-10 h-10 border-2 border-[#4F46E5] border-t-transparent rounded-full animate-spin" />
-                </div>
-              }
-            >
-              <LegacyMissionControl />
-            </Suspense>
-          }
-        />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>

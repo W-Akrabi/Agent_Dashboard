@@ -7,6 +7,19 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Frontend
+frontend/node_modules
+frontend/dist
+frontend/dist-ssr
+frontend/.env
+frontend/.env.local
+frontend/.env.example
+frontend/.vite
+
+# Root caches
+.vite
+
+# Generic
 node_modules
 dist
 dist-ssr
@@ -22,3 +35,12 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Python backend
+.venv
+backend/.venv
+backend/.env
+backend/.env.example
+.env
+__pycache__/
+*.pyc

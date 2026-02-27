@@ -1,18 +1,18 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  Bot, 
-  Inbox, 
-  DollarSign, 
-  Activity, 
-  Play, 
-  Pause, 
+import {
+  Bot,
+  Inbox,
+  DollarSign,
+  Activity,
+  Play,
+  Pause,
   AlertCircle,
   Clock,
-  TrendingUp
+  TrendingUp,
 } from 'lucide-react';
-import { mockAgents, mockEvents, mockSpendData, getPendingApprovalsCount } from '@/data/mockData';
-import type { Agent } from '@/types/index';
+import { getAgents, getEvents, getInbox, getSpend, updateAgentStatus } from '@/lib/api';
+import type { Agent, AgentEvent, SpendData } from '@/types/index';
 
 const statusConfig = {
   running: { color: 'text-green-400', bg: 'bg-green-400/10', icon: Play, label: 'Running' },
@@ -30,29 +30,83 @@ const eventTypeConfig = {
   approval_request: { color: 'text-orange-400', label: 'Approval' },
 };
 
+const defaultSpendData: SpendData = {
+  daily: 0,
+  monthly: 0,
+  budget: 1000,
+  agentBreakdown: [],
+};
+
 export default function Dashboard() {
-  const [agents, setAgents] = useState<Agent[]>(mockAgents);
-  const [events] = useState(mockEvents);
-  const [spendData] = useState(mockSpendData);
-  const [pendingCount] = useState(() => getPendingApprovalsCount());
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [events, setEvents] = useState<AgentEvent[]>([]);
+  const [spendData, setSpendData] = useState<SpendData>(defaultSpendData);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const activeAgents = agents.filter(a => a.status === 'running').length;
-  const totalSpend = spendData.monthly;
-  const budgetPercent = (totalSpend / spendData.budget) * 100;
-
-  const toggleAgentStatus = (agentId: string) => {
-    setAgents(prev => prev.map(agent => {
-      if (agent.id === agentId) {
-        const newStatus = agent.status === 'running' ? 'paused' : 'running';
-        return { ...agent, status: newStatus };
-      }
-      return agent;
-    }));
+  const loadData = async () => {
+    try {
+      setError(null);
+      const [agentsRes, eventsRes, spendRes, pendingRes] = await Promise.all([
+        getAgents(),
+        getEvents(50),
+        getSpend(),
+        getInbox('pending'),
+      ]);
+      setAgents(agentsRes);
+      setEvents(eventsRes);
+      setSpendData(spendRes);
+      setPendingCount(pendingRes.length);
+    } catch (loadError) {
+      console.error(loadError);
+      setError(loadError instanceof Error ? loadError.message : 'Failed to load dashboard data.');
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const activeAgents = useMemo(
+    () => agents.filter((agent) => agent.status === 'running').length,
+    [agents]
+  );
+  const totalSpend = spendData.monthly;
+  const budgetPercent = spendData.budget > 0 ? (totalSpend / spendData.budget) * 100 : 0;
+
+  const toggleAgentStatus = async (agentId: string) => {
+    const target = agents.find((agent) => agent.id === agentId);
+    if (!target) return;
+
+    const newStatus: Agent['status'] = target.status === 'running' ? 'paused' : 'running';
+    try {
+      const updated = await updateAgentStatus(agentId, newStatus);
+      setAgents((prev) => prev.map((agent) => (agent.id === agentId ? updated : agent)));
+    } catch (toggleError) {
+      console.error(toggleError);
+      setError(toggleError instanceof Error ? toggleError.message : 'Failed to update agent status.');
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="data-card p-8 text-center">
+        <p className="text-[#A7ACBF]">Loading dashboard...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      {/* Stats Row */}
+      {error && (
+        <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/30 text-red-300 text-sm">
+          {error}
+        </div>
+      )}
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="data-card p-5">
           <div className="flex items-center justify-between mb-3">
@@ -88,7 +142,7 @@ export default function Dashboard() {
           <p className="text-2xl font-bold">${spendData.daily.toFixed(2)}</p>
           <p className="text-xs text-[#A7ACBF] mt-1">
             <TrendingUp className="w-3 h-3 inline mr-1" />
-            +12% vs yesterday
+            Monthly trend
           </p>
         </div>
 
@@ -101,7 +155,7 @@ export default function Dashboard() {
           </div>
           <p className="text-2xl font-bold">{budgetPercent.toFixed(0)}%</p>
           <div className="mt-2 h-1.5 bg-white/10 rounded-full overflow-hidden">
-            <div 
+            <div
               className={`h-full rounded-full ${budgetPercent > 80 ? 'bg-red-500' : 'bg-[#4F46E5]'}`}
               style={{ width: `${Math.min(budgetPercent, 100)}%` }}
             />
@@ -110,7 +164,6 @@ export default function Dashboard() {
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
-        {/* Agent Cards */}
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">Your Agents</h2>
@@ -120,7 +173,7 @@ export default function Dashboard() {
           </div>
 
           <div className="grid sm:grid-cols-2 gap-4">
-            {agents.map(agent => {
+            {agents.map((agent) => {
               const status = statusConfig[agent.status];
               const StatusIcon = status.icon;
 
@@ -139,8 +192,8 @@ export default function Dashboard() {
                         </span>
                       </div>
                     </div>
-                    <button 
-                      onClick={() => toggleAgentStatus(agent.id)}
+                    <button
+                      onClick={() => void toggleAgentStatus(agent.id)}
                       className="p-2 hover:bg-white/5 rounded-lg transition-colors"
                     >
                       {agent.status === 'running' ? (
@@ -162,10 +215,7 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  <Link 
-                    to={`/agents/${agent.id}`}
-                    className="mt-4 text-xs text-[#4F46E5] hover:underline block"
-                  >
+                  <Link to={`/agents/${agent.id}`} className="mt-4 text-xs text-[#4F46E5] hover:underline block">
                     View details →
                   </Link>
                 </div>
@@ -174,7 +224,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Live Activity Feed */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">Live Activity</h2>
@@ -185,9 +234,9 @@ export default function Dashboard() {
           </div>
 
           <div className="data-card p-4 space-y-3 max-h-[500px] overflow-y-auto">
-            {events.map(event => {
+            {events.map((event) => {
               const typeConfig = eventTypeConfig[event.type];
-              const agent = agents.find(a => a.id === event.agentId);
+              const agent = agents.find((a) => a.id === event.agentId);
 
               return (
                 <div key={event.id} className="p-3 rounded-lg border border-white/5 bg-white/[0.02]">
@@ -199,17 +248,20 @@ export default function Dashboard() {
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-mono text-[#4F46E5]">${event.cost.toFixed(2)}</span>
                     <span className="text-[#A7ACBF]">
-                      {new Date(event.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {new Date(event.createdAt).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
                     </span>
                   </div>
                 </div>
               );
             })}
+            {events.length === 0 && <p className="text-sm text-[#A7ACBF]">No activity yet.</p>}
           </div>
         </div>
       </div>
 
-      {/* Quick Actions */}
       <div className="data-card p-5">
         <h2 className="text-lg font-semibold mb-4">Quick Actions</h2>
         <div className="flex flex-wrap gap-3">
@@ -230,3 +282,4 @@ export default function Dashboard() {
     </div>
   );
 }
+
