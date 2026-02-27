@@ -1,11 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { Bell, FileText, Menu } from 'lucide-react';
-import { Sidebar } from './components/Sidebar';
-import { Dashboard } from './views/Dashboard';
-import { Inbox } from './views/Inbox';
+import { Suspense, lazy, useEffect, useState } from 'react';
+import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { gsap } from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import LandingPage from './pages/LandingPage';
+import Dashboard from './pages/Dashboard';
+import Inbox from './pages/Inbox';
+import Spend from './pages/Spend';
+import Agents from './pages/Agents';
+import AgentDetail from './pages/AgentDetail';
+import Layout from './components/Layout';
 import { Workshop } from './views/Workshop';
 import { Momentum } from './views/Momentum';
-import { ApiSpend } from './views/ApiSpend';
 import { Scheduler } from './views/Scheduler';
 import { MultiAgent } from './views/MultiAgent';
 import { CommsHub } from './views/CommsHub';
@@ -14,141 +19,69 @@ import { FixUI } from './views/FixUI';
 import { Memory } from './views/Memory';
 import { KeyVault } from './views/KeyVault';
 import { IngestApi } from './views/IngestApi';
-import type { TabId } from './types';
-import { MOCK_INBOX } from './data';
 
-const TAB_LABELS: Record<TabId, string> = {
-  dashboard: 'Dashboard',
-  inbox: 'Inbox',
-  workshop: 'Workshop',
-  momentum: 'Momentum',
-  spend: 'API Spend',
-  scheduler: 'Scheduler',
-  'multi-agent': 'Multi-Agent',
-  comms: 'Comms Hub',
-  sleep: 'Sleep Mode',
-  'fix-ui': 'Fix UI',
-  memory: 'Memory',
-  'key-vault': 'Key Vault',
-  'ingest-api': 'The Glue',
-};
+gsap.registerPlugin(ScrollTrigger);
 
-export const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<TabId>('dashboard');
+const LegacyMissionControl = lazy(() => import('./legacy/LegacyMissionControl'));
+
+export default function App() {
   const [isLoaded, setIsLoaded] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [inboxCount, setInboxCount] = useState(
-    MOCK_INBOX.filter(i => i.status === 'pending').length
-  );
 
-  useEffect(() => { const t = setTimeout(() => setIsLoaded(true), 200); return () => clearTimeout(t); }, []);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoaded(true);
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
 
-  if (!isLoaded) return (
-    <div className="loading-screen">
-      <div style={{ textAlign: 'center' }}>
-        <div className="spin" style={{ margin: '0 auto 16px' }} />
-        <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: 'var(--text-3)', letterSpacing: '0.12em' }}>
-          INITIALIZING...
-        </p>
-      </div>
-    </div>
-  );
-
-  const handleNavigate = (tab: TabId) => {
-    setActiveTab(tab);
-    setIsSidebarOpen(false);
-  };
-
-  type ViewEntry = [TabId, React.ReactNode];
-  const views: ViewEntry[] = [
-    ['dashboard', <Dashboard onOpenTab={handleNavigate} />],
-    ['inbox', <Inbox onBadgeChange={setInboxCount} />],
-    ['workshop', <Workshop />],
-    ['momentum', <Momentum />],
-    ['spend', <ApiSpend />],
-    ['scheduler', <Scheduler />],
-    ['multi-agent', <MultiAgent />],
-    ['comms', <CommsHub />],
-    ['sleep', <SleepMode />],
-    ['fix-ui', <FixUI />],
-    ['memory', <Memory />],
-    ['key-vault', <KeyVault />],
-    ['ingest-api', <IngestApi />],
-  ];
-
-  return (
-    <>
-      {/* Atmosphere layers */}
-      <div className="hud-frame">
-        <div className="hud-frame-edge left" />
-        <div className="hud-frame-edge right" />
-      </div>
-      <div className="scanlines" />
-      <div className="starfield" />
-
-      <div
-        className={`sidebar-overlay ${isSidebarOpen ? 'open' : ''}`}
-        onClick={() => setIsSidebarOpen(false)}
-      />
-
-      <div className="app-shell">
-        <Sidebar
-          activeTab={activeTab}
-          onNavigate={handleNavigate}
-          inboxCount={inboxCount}
-          isOpen={isSidebarOpen}
-          onClose={() => setIsSidebarOpen(false)}
-        />
-
-        <div className="main-content">
-          {/* Top header */}
-          <header className="top-header">
-            <div className="header-left">
-              <button
-                type="button"
-                className="mobile-menu-btn"
-                onClick={() => setIsSidebarOpen(true)}
-                aria-label="Open navigation"
-              >
-                <Menu size={18} />
-              </button>
-              <h1>{TAB_LABELS[activeTab]}</h1>
-            </div>
-            <div className="header-right">
-              <button
-                type="button"
-                className="header-icon-btn"
-                onClick={() => handleNavigate('inbox')}
-                aria-label="Open inbox"
-              >
-                <Bell size={16} />
-                {inboxCount > 0 && <span className="header-dot" />}
-              </button>
-              <button type="button" className="header-link-btn">
-                <FileText size={15} />
-                Docs
-              </button>
-              <div className="header-pill">
-                <div className="pulse-dot" style={{ width: 6, height: 6 }} />
-                Live
-              </div>
-            </div>
-          </header>
-
-          {/* Page views */}
-          {views.map(([id, view]) => (
-            <div
-              key={id}
-              className="page-content"
-              style={{ display: activeTab === id ? 'block' : 'none' }}
-            >
-              <div className={activeTab === id ? 'tab-enter' : ''}>
-                {view}
-              </div>
-            </div>
-          ))}
+  if (!isLoaded) {
+    return (
+      <div className="fixed inset-0 bg-[#05060B] flex items-center justify-center z-50">
+        <div className="text-center">
+          <div className="w-12 h-12 border-2 border-[#4F46E5] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-[#A7ACBF] font-mono text-sm">INITIALIZING...</p>
         </div>
       </div>
-    </>
+    );
+  }
+
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route element={<Layout />}>
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/inbox" element={<Inbox />} />
+          <Route path="/spend" element={<Spend />} />
+          <Route path="/agents" element={<Agents />} />
+          <Route path="/agents/:id" element={<AgentDetail />} />
+          <Route path="/workshop" element={<Workshop />} />
+          <Route path="/momentum" element={<Momentum />} />
+          <Route path="/scheduler" element={<Scheduler />} />
+          <Route path="/multi-agent" element={<MultiAgent />} />
+          <Route path="/comms" element={<CommsHub />} />
+          <Route path="/sleep" element={<SleepMode />} />
+          <Route path="/fix-ui" element={<FixUI />} />
+          <Route path="/memory" element={<Memory />} />
+          <Route path="/key-vault" element={<KeyVault />} />
+          <Route path="/glue" element={<IngestApi />} />
+        </Route>
+        <Route
+          path="/mission-control"
+          element={
+            <Suspense
+              fallback={
+                <div className="fixed inset-0 bg-[#05060B] flex items-center justify-center z-50">
+                  <div className="w-10 h-10 border-2 border-[#4F46E5] border-t-transparent rounded-full animate-spin" />
+                </div>
+              }
+            >
+              <LegacyMissionControl />
+            </Suspense>
+          }
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Router>
   );
-};
+}
