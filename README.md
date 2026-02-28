@@ -59,6 +59,9 @@ cd frontend
 cp .env.example .env.local
 ```
 
+`frontend/.env.local` should only include browser-safe values (for example `VITE_API_BASE_URL`).
+Do not add `CONTROL_PLANE_TOKEN` or `VITE_CONTROL_PLANE_TOKEN` to frontend env files.
+
 2. Bootstrap a real user token from a trusted server environment:
 
 ```bash
