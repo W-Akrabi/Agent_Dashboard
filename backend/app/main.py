@@ -1,15 +1,21 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
+from dataclasses import dataclass
+from datetime import datetime
 from decimal import Decimal
 from typing import Any
+from uuid import UUID
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Query, Response, status
+import psycopg
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from psycopg import Connection
 from psycopg.types.json import Jsonb
 
 from .config import get_settings
-from .db import get_db
+from .db import close_db_pool, get_db, get_db_pool, init_db_pool
 from .schemas import (
     AgentCreateRequest,
     AgentCreateResponse,
@@ -22,20 +28,23 @@ from .schemas import (
     EventIngestResponse,
     InboxDecisionRequest,
     InboxItemResponse,
+    InboxStatus,
     SpendResponse,
 )
-from .security import generate_agent_token, hash_agent_token, mask_token_hash
+from .security import (
+    generate_agent_token,
+    hash_agent_token,
+    mask_token_hash,
+)
 
 settings = get_settings()
-app = FastAPI(title="Jarvis Mission Control API", version="1.0.0")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_origins,
-    allow_origin_regex=settings.cors_origin_regex,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+
+
+@dataclass(frozen=True)
+class AuthenticatedUser:
+    id: UUID
+    email: str
+    workspace_id: UUID
 
 
 def _to_float(value: Decimal | float | int | None) -> float:
@@ -102,7 +111,7 @@ def _command_from_row(row: dict[str, Any]) -> CommandResponse:
 def _require_agent_id(
     connection: Connection[dict[str, Any]],
     x_agent_token: str | None,
-) -> str:
+) -> UUID:
     if not x_agent_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -112,7 +121,7 @@ def _require_agent_id(
     token_hash = hash_agent_token(x_agent_token)
     row = connection.execute(
         """
-        select agent_id::text as agent_id
+        select agent_id
         from agent_tokens
         where token_hash = %s and revoked_at is null
         """,
@@ -126,11 +135,61 @@ def _require_agent_id(
     return row["agent_id"]
 
 
-def _fetch_agent(connection: Connection[dict[str, Any]], agent_id: str) -> AgentResponse:
+def _extract_bearer_token(authorization: str | None) -> str:
+    if not authorization:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing Authorization header.",
+        )
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer" or not token.strip():
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authorization header must be Bearer <token>.",
+        )
+    return token.strip()
+
+
+def _require_user_auth(
+    authorization: str | None = Header(default=None, alias="Authorization"),
+    connection: Connection[dict[str, Any]] = Depends(get_db),
+) -> AuthenticatedUser:
+    token_hash = hash_agent_token(_extract_bearer_token(authorization))
+    row = connection.execute(
+        """
+        select id, email, workspace_id
+        from users
+        where api_token_hash = %s
+        """,
+        (token_hash,),
+    ).fetchone()
+    if row is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid user token.",
+        )
+    if row["workspace_id"] is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User is not assigned to a workspace.",
+        )
+
+    return AuthenticatedUser(
+        id=row["id"],
+        email=row["email"],
+        workspace_id=row["workspace_id"],
+    )
+
+
+def _fetch_agent(
+    connection: Connection[dict[str, Any]],
+    agent_id: UUID,
+    workspace_id: UUID,
+) -> AgentResponse:
     row = connection.execute(
         """
         select
-          a.id::text as id,
+          a.id,
           a.name,
           a.status,
           a.description,
@@ -142,38 +201,94 @@ def _fetch_agent(connection: Connection[dict[str, Any]], agent_id: str) -> Agent
         from agents a
         left join events e on e.agent_id = a.id
         left join agent_tokens t on t.agent_id = a.id and t.revoked_at is null
-        where a.id = %s::uuid
+        where a.id = %s::uuid and a.workspace_id = %s::uuid
         group by a.id, a.name, a.status, a.description, a.created_at, t.token_hash
         """,
-        (agent_id,),
+        (agent_id, workspace_id),
     ).fetchone()
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found.")
     return _agent_from_row(row)
 
 
-def _ensure_default_user(connection: Connection[dict[str, Any]]) -> dict[str, Any]:
-    existing_user = connection.execute(
+def _bootstrap_default_identity(connection: Connection[dict[str, Any]]) -> None:
+    connection.execute(
         """
-        select id::text as id, email, monthly_budget
+        insert into users (email, monthly_budget, workspace_id)
+        values ('owner@jarvis.local', 1000, gen_random_uuid())
+        on conflict (email) do nothing
+        """
+    )
+
+    connection.execute(
+        """
+        update users
+        set workspace_id = coalesce(workspace_id, gen_random_uuid())
+        where workspace_id is null
+        """
+    )
+
+    has_user_token = connection.execute(
+        """
+        select 1
         from users
-        order by created_at asc
+        where api_token_hash is not null
         limit 1
         """
     ).fetchone()
-    if existing_user is not None:
-        return existing_user
+    if has_user_token is None:
+        connection.execute(
+            """
+            update users
+            set api_token_hash = %s
+            where id = (
+              select id
+              from users
+              order by created_at asc
+              limit 1
+            )
+            """,
+            (hash_agent_token(settings.control_plane_token),),
+        )
 
-    created_user = connection.execute(
-        """
-        insert into users (email, monthly_budget)
-        values ('owner@jarvis.local', 1000)
-        returning id::text as id, email, monthly_budget
-        """
-    ).fetchone()
-    if created_user is None:
-        raise HTTPException(status_code=500, detail="Failed to initialize default user.")
-    return created_user
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    init_db_pool(settings)
+    pool = get_db_pool()
+    with pool.connection() as connection:
+        _bootstrap_default_identity(connection)
+    try:
+        yield
+    finally:
+        close_db_pool()
+
+
+app = FastAPI(title="Jarvis Mission Control API", version="1.0.0", lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins,
+    allow_origin_regex=settings.cors_origin_regex,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.exception_handler(psycopg.DataError)
+def handle_data_error(_: Request, __: psycopg.DataError) -> JSONResponse:
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": "Invalid value format for one or more fields."},
+    )
+
+
+@app.exception_handler(psycopg.errors.UniqueViolation)
+def handle_unique_violation(_: Request, __: psycopg.errors.UniqueViolation) -> JSONResponse:
+    return JSONResponse(
+        status_code=status.HTTP_409_CONFLICT,
+        content={"detail": "Resource already exists."},
+    )
 
 
 @app.get("/healthz")
@@ -182,11 +297,14 @@ def healthz() -> dict[str, str]:
 
 
 @app.get("/v1/agents", response_model=list[AgentResponse])
-def list_agents(connection: Connection[dict[str, Any]] = Depends(get_db)) -> list[AgentResponse]:
+def list_agents(
+    auth_user: AuthenticatedUser = Depends(_require_user_auth),
+    connection: Connection[dict[str, Any]] = Depends(get_db),
+) -> list[AgentResponse]:
     rows = connection.execute(
         """
         select
-          a.id::text as id,
+          a.id,
           a.name,
           a.status,
           a.description,
@@ -198,9 +316,11 @@ def list_agents(connection: Connection[dict[str, Any]] = Depends(get_db)) -> lis
         from agents a
         left join events e on e.agent_id = a.id
         left join agent_tokens t on t.agent_id = a.id and t.revoked_at is null
+        where a.workspace_id = %s::uuid
         group by a.id, a.name, a.status, a.description, a.created_at, t.token_hash
         order by a.created_at desc
-        """
+        """,
+        (auth_user.workspace_id,),
     ).fetchall()
     return [_agent_from_row(row) for row in rows]
 
@@ -208,6 +328,7 @@ def list_agents(connection: Connection[dict[str, Any]] = Depends(get_db)) -> lis
 @app.post("/v1/agents", response_model=AgentCreateResponse, status_code=status.HTTP_201_CREATED)
 def create_agent(
     payload: AgentCreateRequest,
+    auth_user: AuthenticatedUser = Depends(_require_user_auth),
     connection: Connection[dict[str, Any]] = Depends(get_db),
 ) -> AgentCreateResponse:
     token = generate_agent_token()
@@ -215,11 +336,11 @@ def create_agent(
 
     created_agent = connection.execute(
         """
-        insert into agents (name, description, status)
-        values (%s, %s, 'idle')
-        returning id::text as id
+        insert into agents (owner_user_id, workspace_id, name, description, status)
+        values (%s::uuid, %s::uuid, %s, %s, 'idle')
+        returning id
         """,
-        (payload.name.strip(), payload.description),
+        (auth_user.id, auth_user.workspace_id, payload.name.strip(), payload.description),
     ).fetchone()
     if created_agent is None:
         raise HTTPException(status_code=500, detail="Failed to create agent.")
@@ -233,37 +354,39 @@ def create_agent(
     )
 
     return AgentCreateResponse(
-        agent=_fetch_agent(connection, created_agent["id"]),
+        agent=_fetch_agent(connection, created_agent["id"], auth_user.workspace_id),
         agentToken=token,
     )
 
 
 @app.get("/v1/agents/{agent_id}", response_model=AgentResponse)
 def get_agent(
-    agent_id: str,
+    agent_id: UUID,
+    auth_user: AuthenticatedUser = Depends(_require_user_auth),
     connection: Connection[dict[str, Any]] = Depends(get_db),
 ) -> AgentResponse:
-    return _fetch_agent(connection, agent_id)
+    return _fetch_agent(connection, agent_id, auth_user.workspace_id)
 
 
 @app.patch("/v1/agents/{agent_id}/status", response_model=AgentResponse)
 def update_agent_status(
-    agent_id: str,
+    agent_id: UUID,
     payload: AgentStatusUpdateRequest,
+    auth_user: AuthenticatedUser = Depends(_require_user_auth),
     connection: Connection[dict[str, Any]] = Depends(get_db),
 ) -> AgentResponse:
     updated = connection.execute(
         """
         update agents
         set status = %s
-        where id = %s::uuid
-        returning id::text as id
+        where id = %s::uuid and workspace_id = %s::uuid
+        returning id
         """,
-        (payload.status, agent_id),
+        (payload.status, agent_id, auth_user.workspace_id),
     ).fetchone()
     if updated is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found.")
-    return _fetch_agent(connection, agent_id)
+    return _fetch_agent(connection, agent_id, auth_user.workspace_id)
 
 
 @app.post(
@@ -272,12 +395,17 @@ def update_agent_status(
     response_class=Response,
 )
 def revoke_agent_token(
-    agent_id: str,
+    agent_id: UUID,
+    auth_user: AuthenticatedUser = Depends(_require_user_auth),
     connection: Connection[dict[str, Any]] = Depends(get_db),
 ) -> Response:
     exists = connection.execute(
-        "select 1 from agents where id = %s::uuid",
-        (agent_id,),
+        """
+        select 1
+        from agents
+        where id = %s::uuid and workspace_id = %s::uuid
+        """,
+        (agent_id, auth_user.workspace_id),
     ).fetchone()
     if exists is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found.")
@@ -295,25 +423,28 @@ def revoke_agent_token(
 
 @app.get("/v1/agents/{agent_id}/events", response_model=list[AgentEventResponse])
 def get_agent_events(
-    agent_id: str,
+    agent_id: UUID,
     limit: int = Query(default=100, ge=1, le=500),
+    auth_user: AuthenticatedUser = Depends(_require_user_auth),
     connection: Connection[dict[str, Any]] = Depends(get_db),
 ) -> list[AgentEventResponse]:
     rows = connection.execute(
         """
         select
-          id::text as id,
-          agent_id::text as agent_id,
-          type,
-          message,
-          cost,
-          created_at
-        from events
-        where agent_id = %s::uuid
-        order by created_at desc
+          e.id,
+          e.agent_id,
+          e.type,
+          e.message,
+          e.cost,
+          e.created_at
+        from events e
+        join agents a on a.id = e.agent_id
+        where e.agent_id = %s::uuid
+          and a.workspace_id = %s::uuid
+        order by e.created_at desc
         limit %s
         """,
-        (agent_id, limit),
+        (agent_id, auth_user.workspace_id, limit),
     ).fetchall()
     return [_event_from_row(row) for row in rows]
 
@@ -321,41 +452,46 @@ def get_agent_events(
 @app.get("/v1/events", response_model=list[AgentEventResponse])
 def list_events(
     limit: int = Query(default=50, ge=1, le=500),
-    agentId: str | None = Query(default=None),
+    agentId: UUID | None = Query(default=None),
+    auth_user: AuthenticatedUser = Depends(_require_user_auth),
     connection: Connection[dict[str, Any]] = Depends(get_db),
 ) -> list[AgentEventResponse]:
     if agentId:
         rows = connection.execute(
             """
             select
-              id::text as id,
-              agent_id::text as agent_id,
-              type,
-              message,
-              cost,
-              created_at
-            from events
-            where agent_id = %s::uuid
-            order by created_at desc
+              e.id,
+              e.agent_id,
+              e.type,
+              e.message,
+              e.cost,
+              e.created_at
+            from events e
+            join agents a on a.id = e.agent_id
+            where e.agent_id = %s::uuid
+              and a.workspace_id = %s::uuid
+            order by e.created_at desc
             limit %s
             """,
-            (agentId, limit),
+            (agentId, auth_user.workspace_id, limit),
         ).fetchall()
     else:
         rows = connection.execute(
             """
             select
-              id::text as id,
-              agent_id::text as agent_id,
-              type,
-              message,
-              cost,
-              created_at
-            from events
-            order by created_at desc
+              e.id,
+              e.agent_id,
+              e.type,
+              e.message,
+              e.cost,
+              e.created_at
+            from events e
+            join agents a on a.id = e.agent_id
+            where a.workspace_id = %s::uuid
+            order by e.created_at desc
             limit %s
             """,
-            (limit,),
+            (auth_user.workspace_id, limit),
         ).fetchall()
 
     return [_event_from_row(row) for row in rows]
@@ -383,8 +519,8 @@ def ingest_event(
         )
         values (%s::uuid, %s, %s, %s, %s, %s, %s)
         returning
-          id::text as id,
-          agent_id::text as agent_id,
+          id,
+          agent_id,
           type,
           message,
           cost,
@@ -412,7 +548,7 @@ def ingest_event(
         (agent_id,),
     )
 
-    task_id: str | None = None
+    task_id: UUID | None = None
     if payload.requiresApproval:
         if not payload.proposedAction:
             raise HTTPException(
@@ -423,7 +559,7 @@ def ingest_event(
             """
             insert into tasks (agent_id, proposed_action, completed_actions, status)
             values (%s::uuid, %s, %s, 'pending')
-            returning id::text as id
+            returning id
             """,
             (agent_id, payload.proposedAction, Jsonb(payload.completedActions)),
         ).fetchone()
@@ -444,16 +580,17 @@ def ingest_event(
 
 @app.get("/v1/inbox", response_model=list[InboxItemResponse])
 def list_inbox(
-    status_filter: str | None = Query(default=None, alias="status"),
+    status_filter: InboxStatus | None = Query(default=None, alias="status"),
     limit: int = Query(default=100, ge=1, le=500),
+    auth_user: AuthenticatedUser = Depends(_require_user_auth),
     connection: Connection[dict[str, Any]] = Depends(get_db),
 ) -> list[InboxItemResponse]:
     if status_filter:
         rows = connection.execute(
             """
             select
-              t.id::text as id,
-              t.agent_id::text as agent_id,
+              t.id,
+              t.agent_id,
               a.name as agent_name,
               t.proposed_action,
               t.completed_actions,
@@ -463,17 +600,18 @@ def list_inbox(
             from tasks t
             join agents a on a.id = t.agent_id
             where t.status = %s
+              and a.workspace_id = %s::uuid
             order by t.created_at desc
             limit %s
             """,
-            (status_filter, limit),
+            (status_filter, auth_user.workspace_id, limit),
         ).fetchall()
     else:
         rows = connection.execute(
             """
             select
-              t.id::text as id,
-              t.agent_id::text as agent_id,
+              t.id,
+              t.agent_id,
               a.name as agent_name,
               t.proposed_action,
               t.completed_actions,
@@ -482,12 +620,13 @@ def list_inbox(
               t.created_at
             from tasks t
             join agents a on a.id = t.agent_id
+            where a.workspace_id = %s::uuid
             order by
               case when t.status = 'pending' then 0 else 1 end,
               t.created_at desc
             limit %s
             """,
-            (limit,),
+            (auth_user.workspace_id, limit),
         ).fetchall()
 
     return [_inbox_from_row(row) for row in rows]
@@ -495,70 +634,90 @@ def list_inbox(
 
 @app.post("/v1/inbox/{item_id}/decision", response_model=InboxItemResponse)
 def decide_inbox_item(
-    item_id: str,
+    item_id: UUID,
     payload: InboxDecisionRequest,
+    auth_user: AuthenticatedUser = Depends(_require_user_auth),
     connection: Connection[dict[str, Any]] = Depends(get_db),
 ) -> InboxItemResponse:
-    task_row = connection.execute(
-        """
-        select id::text as id, agent_id::text as agent_id, status
-        from tasks
-        where id = %s::uuid
-        """,
-        (item_id,),
-    ).fetchone()
-    if task_row is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Inbox item not found.")
-    if task_row["status"] != "pending":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Inbox item already decided.",
+    with connection.transaction():
+        task_row = connection.execute(
+            """
+            update tasks t
+            set status = %s, comment = %s, decided_at = now()
+            from agents a
+            where t.id = %s::uuid
+              and t.status = 'pending'
+              and a.id = t.agent_id
+              and a.workspace_id = %s::uuid
+            returning t.id, t.agent_id
+            """,
+            (payload.decision, payload.comment, item_id, auth_user.workspace_id),
+        ).fetchone()
+
+        if task_row is None:
+            existing = connection.execute(
+                """
+                select t.status
+                from tasks t
+                join agents a on a.id = t.agent_id
+                where t.id = %s::uuid
+                  and a.workspace_id = %s::uuid
+                """,
+                (item_id, auth_user.workspace_id),
+            ).fetchone()
+            if existing is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Inbox item not found.",
+                )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Inbox item already decided.",
+            )
+
+        command_row = connection.execute(
+            """
+            insert into commands (agent_id, source_task_id, kind, payload, status)
+            values (%s::uuid, %s::uuid, 'approval_decision', %s, 'pending')
+            on conflict do nothing
+            returning id
+            """,
+            (
+                task_row["agent_id"],
+                item_id,
+                Jsonb({"decision": payload.decision, "comment": payload.comment}),
+            ),
+        ).fetchone()
+        if command_row is None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="A decision command already exists for this inbox item.",
+            )
+
+        pending_count_row = connection.execute(
+            """
+            select count(*)::int as pending_count
+            from tasks
+            where agent_id = %s::uuid and status = 'pending'
+            """,
+            (task_row["agent_id"],),
+        ).fetchone()
+        pending_count = int((pending_count_row or {}).get("pending_count", 0))
+
+        connection.execute(
+            """
+            update agents
+            set status = %s
+            where id = %s::uuid
+            """,
+            ("waiting_approval" if pending_count > 0 else "running", task_row["agent_id"]),
         )
-
-    connection.execute(
-        """
-        update tasks
-        set status = %s, comment = %s, decided_at = now()
-        where id = %s::uuid
-        """,
-        (payload.decision, payload.comment, item_id),
-    )
-
-    connection.execute(
-        """
-        insert into commands (agent_id, source_task_id, kind, payload, status)
-        values (%s::uuid, %s::uuid, 'approval_decision', %s, 'pending')
-        """,
-        (
-            task_row["agent_id"],
-            item_id,
-            Jsonb({"decision": payload.decision, "comment": payload.comment}),
-        ),
-    )
-
-    pending_count_row = connection.execute(
-        """
-        select count(*)::int as pending_count
-        from tasks
-        where agent_id = %s::uuid and status = 'pending'
-        """,
-        (task_row["agent_id"],),
-    ).fetchone()
-    pending_count = int((pending_count_row or {}).get("pending_count", 0))
-    connection.execute(
-        """
-        update agents
-        set status = %s
-        where id = %s::uuid
-        """,
-        ("waiting_approval" if pending_count > 0 else "running", task_row["agent_id"]),
-    )
 
     updated_row = connection.execute(
         """
         select
-          t.id::text as id,
-          t.agent_id::text as agent_id,
+          t.id,
+          t.agent_id,
           a.name as agent_name,
           t.proposed_action,
           t.completed_actions,
@@ -568,8 +727,9 @@ def decide_inbox_item(
         from tasks t
         join agents a on a.id = t.agent_id
         where t.id = %s::uuid
+          and a.workspace_id = %s::uuid
         """,
-        (item_id,),
+        (item_id, auth_user.workspace_id),
     ).fetchone()
     if updated_row is None:
         raise HTTPException(status_code=500, detail="Failed to load updated inbox item.")
@@ -577,35 +737,55 @@ def decide_inbox_item(
 
 
 @app.get("/v1/spend", response_model=SpendResponse)
-def get_spend(connection: Connection[dict[str, Any]] = Depends(get_db)) -> SpendResponse:
-    user = _ensure_default_user(connection)
+def get_spend(
+    auth_user: AuthenticatedUser = Depends(_require_user_auth),
+    connection: Connection[dict[str, Any]] = Depends(get_db),
+) -> SpendResponse:
+    user = connection.execute(
+        """
+        select id, monthly_budget
+        from users
+        where id = %s::uuid and workspace_id = %s::uuid
+        """,
+        (auth_user.id, auth_user.workspace_id),
+    ).fetchone()
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
 
     daily_row = connection.execute(
         """
-        select coalesce(sum(cost), 0)::float8 as daily
-        from events
-        where created_at >= date_trunc('day', now())
-        """
+        select coalesce(sum(e.cost), 0)::float8 as daily
+        from events e
+        join agents a on a.id = e.agent_id
+        where a.workspace_id = %s::uuid
+          and e.created_at >= date_trunc('day', now())
+        """,
+        (auth_user.workspace_id,),
     ).fetchone()
     monthly_row = connection.execute(
         """
-        select coalesce(sum(cost), 0)::float8 as monthly
-        from events
-        where created_at >= date_trunc('month', now())
-        """
+        select coalesce(sum(e.cost), 0)::float8 as monthly
+        from events e
+        join agents a on a.id = e.agent_id
+        where a.workspace_id = %s::uuid
+          and e.created_at >= date_trunc('month', now())
+        """,
+        (auth_user.workspace_id,),
     ).fetchone()
     breakdown_rows = connection.execute(
         """
         select
-          a.id::text as agent_id,
+          a.id as agent_id,
           a.name as agent_name,
           coalesce(sum(e.cost), 0)::float8 as spend
         from agents a
         left join events e on e.agent_id = a.id
           and e.created_at >= date_trunc('month', now())
+        where a.workspace_id = %s::uuid
         group by a.id, a.name
         order by spend desc, a.name asc
-        """
+        """,
+        (auth_user.workspace_id,),
     ).fetchall()
 
     return SpendResponse(
@@ -626,23 +806,26 @@ def get_spend(connection: Connection[dict[str, Any]] = Depends(get_db)) -> Spend
 @app.patch("/v1/spend/budget", response_model=SpendResponse)
 def update_budget(
     payload: BudgetUpdateRequest,
+    auth_user: AuthenticatedUser = Depends(_require_user_auth),
     connection: Connection[dict[str, Any]] = Depends(get_db),
 ) -> SpendResponse:
-    user = _ensure_default_user(connection)
-    connection.execute(
+    updated = connection.execute(
         """
         update users
         set monthly_budget = %s
-        where id = %s::uuid
+        where id = %s::uuid and workspace_id = %s::uuid
+        returning id
         """,
-        (payload.budget, user["id"]),
-    )
-    return get_spend(connection)
+        (payload.budget, auth_user.id, auth_user.workspace_id),
+    ).fetchone()
+    if updated is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
+    return get_spend(auth_user=auth_user, connection=connection)
 
 
 @app.get("/v1/commands", response_model=list[CommandResponse])
 def get_commands(
-    since: str | None = Query(default=None),
+    since: datetime | None = Query(default=None),
     x_agent_token: str | None = Header(default=None, alias="X-Agent-Token"),
     connection: Connection[dict[str, Any]] = Depends(get_db),
 ) -> list[CommandResponse]:
@@ -652,17 +835,17 @@ def get_commands(
         rows = connection.execute(
             """
             select
-              id::text as id,
-              agent_id::text as agent_id,
+              id,
+              agent_id,
               kind,
               payload,
               status,
               created_at,
-              source_task_id::text as source_task_id
+              source_task_id
             from commands
             where agent_id = %s::uuid
               and status = 'pending'
-              and created_at >= %s::timestamptz
+              and created_at >= %s
             order by created_at asc
             """,
             (agent_id, since),
@@ -671,13 +854,13 @@ def get_commands(
         rows = connection.execute(
             """
             select
-              id::text as id,
-              agent_id::text as agent_id,
+              id,
+              agent_id,
               kind,
               payload,
               status,
               created_at,
-              source_task_id::text as source_task_id
+              source_task_id
             from commands
             where agent_id = %s::uuid
               and status = 'pending'
@@ -691,7 +874,7 @@ def get_commands(
 
 @app.post("/v1/commands/{command_id}/ack", response_model=CommandResponse)
 def acknowledge_command(
-    command_id: str,
+    command_id: UUID,
     x_agent_token: str | None = Header(default=None, alias="X-Agent-Token"),
     connection: Connection[dict[str, Any]] = Depends(get_db),
 ) -> CommandResponse:
@@ -702,13 +885,13 @@ def acknowledge_command(
         set status = 'acked', acked_at = now()
         where id = %s::uuid and agent_id = %s::uuid
         returning
-          id::text as id,
-          agent_id::text as agent_id,
+          id,
+          agent_id,
           kind,
           payload,
           status,
           created_at,
-          source_task_id::text as source_task_id
+          source_task_id
         """,
         (command_id, agent_id),
     ).fetchone()

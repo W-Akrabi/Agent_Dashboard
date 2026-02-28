@@ -38,13 +38,25 @@ def _build_database_url() -> str:
     )
 
 
+def _require_env(name: str) -> str:
+    value = os.getenv(name)
+    if value:
+        return value
+    raise RuntimeError(f"Missing required environment variable: {name}")
+
+
 @dataclass(frozen=True)
 class Settings:
     database_url: str
     app_host: str
     app_port: int
+    db_pool_min_size: int
+    db_pool_max_size: int
+    db_pool_timeout_seconds: float
+    db_pool_max_idle_seconds: float
     cors_origins: list[str]
     cors_origin_regex: str
+    control_plane_token: str
 
 
 @lru_cache(maxsize=1)
@@ -53,9 +65,14 @@ def get_settings() -> Settings:
         database_url=_build_database_url(),
         app_host=os.getenv("APP_HOST", "0.0.0.0"),
         app_port=int(os.getenv("APP_PORT", "8000")),
+        db_pool_min_size=int(os.getenv("DB_POOL_MIN_SIZE", "1")),
+        db_pool_max_size=int(os.getenv("DB_POOL_MAX_SIZE", "10")),
+        db_pool_timeout_seconds=float(os.getenv("DB_POOL_TIMEOUT_SECONDS", "10")),
+        db_pool_max_idle_seconds=float(os.getenv("DB_POOL_MAX_IDLE_SECONDS", "30")),
         cors_origins=_csv_to_list(os.getenv("CORS_ORIGINS", "http://localhost:5173")),
         cors_origin_regex=os.getenv(
             "CORS_ORIGIN_REGEX",
             r"https?://(localhost|127\.0\.0\.1)(:\d+)?$",
         ),
+        control_plane_token=_require_env("CONTROL_PLANE_TOKEN"),
     )

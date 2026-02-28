@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from uuid import UUID
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
@@ -13,7 +14,7 @@ CommandStatus = Literal["pending", "acked"]
 
 
 class AgentResponse(BaseModel):
-    id: str
+    id: UUID
     name: str
     status: AgentStatus
     totalSpend: float
@@ -39,8 +40,8 @@ class AgentStatusUpdateRequest(BaseModel):
 
 
 class AgentEventResponse(BaseModel):
-    id: str
-    agentId: str
+    id: UUID
+    agentId: UUID
     type: EventType
     message: str
     cost: float
@@ -58,12 +59,12 @@ class EventIngestRequest(BaseModel):
 
 class EventIngestResponse(BaseModel):
     event: AgentEventResponse
-    taskId: str | None = None
+    taskId: UUID | None = None
 
 
 class InboxItemResponse(BaseModel):
-    id: str
-    agentId: str
+    id: UUID
+    agentId: UUID
     agentName: str
     proposedAction: str
     completedActions: list[str]
@@ -78,17 +79,17 @@ class InboxDecisionRequest(BaseModel):
 
 
 class CommandResponse(BaseModel):
-    id: str
-    agentId: str
+    id: UUID
+    agentId: UUID
     kind: str
     payload: dict[str, Any]
     status: CommandStatus
     createdAt: datetime
-    sourceTaskId: str | None = None
+    sourceTaskId: UUID | None = None
 
 
 class SpendBreakdownItem(BaseModel):
-    agentId: str
+    agentId: UUID
     agentName: str
     spend: float
 
@@ -102,4 +103,3 @@ class SpendResponse(BaseModel):
 
 class BudgetUpdateRequest(BaseModel):
     budget: float = Field(gt=0)
-

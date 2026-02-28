@@ -28,6 +28,9 @@ cp .env.example .env
 3. Set DB configuration in `.env`:
 - Option A: `DATABASE_URL` (password must be URL-encoded)
 - Option B: `SUPABASE_DB_*` fields (recommended for special characters in password)
+- Set `CONTROL_PLANE_TOKEN` to a strong random value.
+  It is server-side only and used to bootstrap the first user bearer token when no user token exists.
+- Optional DB pool tuning: `DB_POOL_MIN_SIZE`, `DB_POOL_MAX_SIZE`, `DB_POOL_TIMEOUT_SECONDS`, `DB_POOL_MAX_IDLE_SECONDS`.
 
 4. Run backend:
 
@@ -41,6 +44,11 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 Backend docs: `http://localhost:8000/docs`
 
+Dashboard auth:
+- Dashboard/control-plane routes require `Authorization: Bearer <user_token>`.
+- Frontend/browser clients must never send `X-Control-Plane-Token`.
+- If you need a machine-to-machine control token, keep it server-side and forward user-authenticated requests through a trusted backend-for-frontend layer.
+
 ## 2) Frontend Setup
 
 1. Configure API base URL:
@@ -50,7 +58,13 @@ cd frontend
 cp .env.example .env.local
 ```
 
-2. Run frontend:
+2. Provide a user bearer token (identity-bearing, per user), for example in dev tools:
+
+```js
+localStorage.setItem('jarvis_user_token', 'YOUR_USER_BEARER_TOKEN')
+```
+
+3. Run frontend:
 
 ```bash
 cd frontend

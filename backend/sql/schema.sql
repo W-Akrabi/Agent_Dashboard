@@ -6,12 +6,24 @@ create extension if not exists pgcrypto;
 create table if not exists users (
   id uuid primary key default gen_random_uuid(),
   email text not null unique,
+  workspace_id uuid not null default gen_random_uuid(),
+  api_token_hash text unique,
   monthly_budget numeric(12,2) not null default 1000,
   created_at timestamptz not null default now()
 );
 
+alter table users add column if not exists workspace_id uuid;
+alter table users alter column workspace_id set default gen_random_uuid();
+update users
+set workspace_id = gen_random_uuid()
+where workspace_id is null;
+alter table users alter column workspace_id set not null;
+alter table users add column if not exists api_token_hash text;
+
 create table if not exists agents (
   id uuid primary key default gen_random_uuid(),
+  owner_user_id uuid references users(id) on delete set null,
+  workspace_id uuid not null,
   name text not null,
   description text,
   status text not null default 'idle'
@@ -19,6 +31,29 @@ create table if not exists agents (
   created_at timestamptz not null default now(),
   last_seen_at timestamptz not null default now()
 );
+
+alter table agents add column if not exists owner_user_id uuid references users(id) on delete set null;
+alter table agents add column if not exists workspace_id uuid;
+update agents
+set workspace_id = (
+  select coalesce(
+    (
+      select u.workspace_id
+      from users u
+      order by u.created_at asc
+      limit 1
+    ),
+    gen_random_uuid()
+  )
+)
+where workspace_id is null;
+alter table agents alter column workspace_id set not null;
+
+create index if not exists idx_agents_workspace_created_at
+  on agents(workspace_id, created_at desc);
+
+create index if not exists idx_agents_owner_user
+  on agents(owner_user_id);
 
 create table if not exists agent_tokens (
   id uuid primary key default gen_random_uuid(),
@@ -86,6 +121,10 @@ create table if not exists commands (
 
 create index if not exists idx_commands_agent_status_created
   on commands(agent_id, status, created_at asc);
+
+create unique index if not exists idx_commands_one_decision_per_source_task
+  on commands(source_task_id)
+  where source_task_id is not null and kind = 'approval_decision';
 
 insert into users (email, monthly_budget)
 values ('owner@jarvis.local', 1000)

@@ -1,6 +1,7 @@
 import type { Agent, AgentEvent, InboxItem, SpendData } from '@/types/index';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8000';
+const USER_TOKEN_STORAGE_KEY = 'jarvis_user_token';
 
 export type AgentCreateResponse = {
   agent: Agent;
@@ -14,6 +15,11 @@ type RequestOptions = RequestInit & {
 };
 
 async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const userToken = window.localStorage.getItem(USER_TOKEN_STORAGE_KEY)?.trim();
+  if (!userToken) {
+    throw new Error(`Missing user token. Set localStorage['${USER_TOKEN_STORAGE_KEY}'] to a valid bearer token.`);
+  }
+
   const { query, ...init } = options;
   const url = new URL(`${API_BASE_URL}${path}`);
 
@@ -29,6 +35,7 @@ async function apiRequest<T>(path: string, options: RequestOptions = {}): Promis
     ...init,
     headers: {
       'Content-Type': 'application/json',
+      Authorization: `Bearer ${userToken}`,
       ...(init.headers ?? {}),
     },
   });
@@ -116,4 +123,3 @@ export function updateBudget(budget: number) {
     body: JSON.stringify({ budget }),
   });
 }
-
