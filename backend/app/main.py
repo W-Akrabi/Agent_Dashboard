@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import psycopg
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response, status
@@ -298,22 +298,102 @@ def _fetch_agent(
     return _agent_from_row(row)
 
 
-def _bootstrap_default_identity(connection: Connection[dict[str, Any]]) -> None:
+def _ensure_bootstrap_schema_compat(connection: Connection[dict[str, Any]]) -> None:
     connection.execute(
         """
-        insert into users (email, monthly_budget, workspace_id)
-        values ('owner@jarvis.local', 1000, gen_random_uuid())
-        on conflict (email) do nothing
+        alter table users add column if not exists workspace_id uuid;
+        alter table users add column if not exists api_token_hash text;
+        alter table users add column if not exists api_token_issued_at timestamptz;
+        alter table users add column if not exists api_token_last_rotated_at timestamptz;
+        alter table users add column if not exists api_token_revoked_at timestamptz;
+        alter table users add column if not exists api_token_last_used_at timestamptz;
+        """
+    )
+
+    missing_user_workspaces = connection.execute(
+        """
+        select id
+        from users
+        where workspace_id is null
+        """
+    ).fetchall()
+    for row in missing_user_workspaces:
+        connection.execute(
+            """
+            update users
+            set workspace_id = %s::uuid
+            where id = %s::uuid
+            """,
+            (uuid4(), row["id"]),
+        )
+
+    connection.execute(
+        """
+        alter table users alter column workspace_id set not null
         """
     )
 
     connection.execute(
         """
-        update users
-        set workspace_id = coalesce(workspace_id, gen_random_uuid())
-        where workspace_id is null
+        alter table agents add column if not exists owner_user_id uuid;
+        alter table agents add column if not exists workspace_id uuid;
+        alter table agents add column if not exists description text;
         """
     )
+
+    primary_workspace_row = connection.execute(
+        """
+        select workspace_id
+        from users
+        order by created_at asc
+        limit 1
+        """
+    ).fetchone()
+    primary_workspace_id = (
+        primary_workspace_row["workspace_id"] if primary_workspace_row else uuid4()
+    )
+    connection.execute(
+        """
+        update agents
+        set workspace_id = %s::uuid
+        where workspace_id is null
+        """,
+        (primary_workspace_id,),
+    )
+    connection.execute(
+        """
+        alter table agents alter column workspace_id set not null
+        """
+    )
+
+
+def _bootstrap_default_identity(connection: Connection[dict[str, Any]]) -> None:
+    owner_workspace_id = uuid4()
+    connection.execute(
+        """
+        insert into users (email, monthly_budget, workspace_id)
+        values ('owner@jarvis.local', 1000, %s::uuid)
+        on conflict (email) do nothing
+        """,
+        (owner_workspace_id,),
+    )
+
+    missing_user_workspaces = connection.execute(
+        """
+        select id
+        from users
+        where workspace_id is null
+        """
+    ).fetchall()
+    for row in missing_user_workspaces:
+        connection.execute(
+            """
+            update users
+            set workspace_id = %s::uuid
+            where id = %s::uuid
+            """,
+            (uuid4(), row["id"]),
+        )
 
     has_user_token_or_history = connection.execute(
         """
@@ -350,6 +430,7 @@ async def lifespan(_: FastAPI):
     init_db_pool(settings)
     pool = get_db_pool()
     with pool.connection() as connection:
+        _ensure_bootstrap_schema_compat(connection)
         _bootstrap_default_identity(connection)
     try:
         yield

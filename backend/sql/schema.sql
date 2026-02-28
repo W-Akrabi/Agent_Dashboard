@@ -16,12 +16,27 @@ create table if not exists users (
   created_at timestamptz not null default now()
 );
 
+alter table users add column if not exists id uuid;
+update users
+set id = gen_random_uuid()
+where id is null;
+alter table users alter column id set default gen_random_uuid();
+alter table users alter column id set not null;
+create unique index if not exists idx_users_id_unique
+  on users(id);
+
 alter table users add column if not exists workspace_id uuid;
 alter table users alter column workspace_id set default gen_random_uuid();
 update users
 set workspace_id = gen_random_uuid()
 where workspace_id is null;
 alter table users alter column workspace_id set not null;
+alter table users add column if not exists created_at timestamptz;
+update users
+set created_at = now()
+where created_at is null;
+alter table users alter column created_at set default now();
+alter table users alter column created_at set not null;
 alter table users add column if not exists api_token_hash text;
 alter table users add column if not exists api_token_issued_at timestamptz;
 alter table users add column if not exists api_token_last_rotated_at timestamptz;
@@ -44,8 +59,36 @@ create table if not exists agents (
   last_seen_at timestamptz not null default now()
 );
 
+alter table agents add column if not exists id uuid;
+update agents
+set id = gen_random_uuid()
+where id is null;
+alter table agents alter column id set default gen_random_uuid();
+alter table agents alter column id set not null;
+create unique index if not exists idx_agents_id_unique
+  on agents(id);
+
 alter table agents add column if not exists owner_user_id uuid references users(id) on delete set null;
 alter table agents add column if not exists workspace_id uuid;
+alter table agents add column if not exists description text;
+alter table agents add column if not exists status text;
+update agents
+set status = 'idle'
+where status is null;
+alter table agents alter column status set default 'idle';
+alter table agents alter column status set not null;
+alter table agents add column if not exists created_at timestamptz;
+update agents
+set created_at = now()
+where created_at is null;
+alter table agents alter column created_at set default now();
+alter table agents alter column created_at set not null;
+alter table agents add column if not exists last_seen_at timestamptz;
+update agents
+set last_seen_at = coalesce(last_seen_at, created_at, now())
+where last_seen_at is null;
+alter table agents alter column last_seen_at set default now();
+alter table agents alter column last_seen_at set not null;
 update agents
 set workspace_id = (
   select coalesce(
@@ -112,6 +155,15 @@ create table if not exists tasks (
   created_at timestamptz not null default now(),
   decided_at timestamptz
 );
+
+alter table tasks add column if not exists id uuid;
+update tasks
+set id = gen_random_uuid()
+where id is null;
+alter table tasks alter column id set default gen_random_uuid();
+alter table tasks alter column id set not null;
+create unique index if not exists idx_tasks_id_unique
+  on tasks(id);
 
 create index if not exists idx_tasks_status_created_at
   on tasks(status, created_at desc);
