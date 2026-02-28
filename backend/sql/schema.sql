@@ -8,6 +8,10 @@ create table if not exists users (
   email text not null unique,
   workspace_id uuid not null default gen_random_uuid(),
   api_token_hash text unique,
+  api_token_issued_at timestamptz,
+  api_token_last_rotated_at timestamptz,
+  api_token_revoked_at timestamptz,
+  api_token_last_used_at timestamptz,
   monthly_budget numeric(12,2) not null default 1000,
   created_at timestamptz not null default now()
 );
@@ -19,6 +23,14 @@ set workspace_id = gen_random_uuid()
 where workspace_id is null;
 alter table users alter column workspace_id set not null;
 alter table users add column if not exists api_token_hash text;
+alter table users add column if not exists api_token_issued_at timestamptz;
+alter table users add column if not exists api_token_last_rotated_at timestamptz;
+alter table users add column if not exists api_token_revoked_at timestamptz;
+alter table users add column if not exists api_token_last_used_at timestamptz;
+update users
+set api_token_issued_at = coalesce(api_token_issued_at, created_at)
+where api_token_hash is not null
+  and api_token_issued_at is null;
 
 create table if not exists agents (
   id uuid primary key default gen_random_uuid(),

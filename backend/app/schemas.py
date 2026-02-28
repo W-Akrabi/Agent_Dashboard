@@ -103,3 +103,15 @@ class SpendResponse(BaseModel):
 
 class BudgetUpdateRequest(BaseModel):
     budget: float = Field(gt=0)
+
+
+class UserTokenIssueRequest(BaseModel):
+    email: str | None = Field(default=None, max_length=320)
+
+
+class UserTokenResponse(BaseModel):
+    userId: UUID
+    email: str
+    userToken: str
+    issuedAt: datetime
+    rotatedAt: datetime | None = None

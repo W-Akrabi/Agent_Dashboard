@@ -9,6 +9,7 @@ cp .env.example .env
 
 Set either `DATABASE_URL` or the `SUPABASE_DB_*` fields in `.env`.
 Set `CONTROL_PLANE_TOKEN` to a strong random server-side secret.
+This value must be unique per environment and never committed as a real secret.
 It is used to bootstrap the first user bearer token only when no user token exists.
 Do not expose it to browser clients.
 
@@ -40,3 +41,35 @@ Auth model:
 - Dashboard/control-plane endpoints use `Authorization: Bearer <user_token>`.
 - Agent runtime endpoints continue to use `X-Agent-Token`.
 - `X-Control-Plane-Token` should be reserved for trusted server-side machine-to-machine use only.
+
+User token lifecycle endpoints:
+- `POST /v1/user-token/issue` (`X-Control-Plane-Token` required) issues a new user token.
+- `POST /v1/user-token/rotate` (`Authorization: Bearer <user_token>`) rotates the caller token.
+- `POST /v1/user-token/revoke` (`Authorization: Bearer <user_token>`) revokes the caller token.
+
+## Operator runbook: user token rotation
+
+1. Initial issue (or break-glass re-issue) from a trusted server environment:
+
+```bash
+curl -sS -X POST http://localhost:8000/v1/user-token/issue \
+  -H "X-Control-Plane-Token: $CONTROL_PLANE_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+2. Rotate an active user token:
+
+```bash
+curl -sS -X POST http://localhost:8000/v1/user-token/rotate \
+  -H "Authorization: Bearer $CURRENT_USER_TOKEN"
+```
+
+3. Revoke an active user token:
+
+```bash
+curl -i -X POST http://localhost:8000/v1/user-token/revoke \
+  -H "Authorization: Bearer $CURRENT_USER_TOKEN"
+```
+
+After `issue` or `rotate`, store the returned `userToken` securely and update frontend/browser token storage.

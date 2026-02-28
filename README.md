@@ -29,6 +29,7 @@ cp .env.example .env
 - Option A: `DATABASE_URL` (password must be URL-encoded)
 - Option B: `SUPABASE_DB_*` fields (recommended for special characters in password)
 - Set `CONTROL_PLANE_TOKEN` to a strong random value.
+  It must be unique per environment and never committed as a real secret.
   It is server-side only and used to bootstrap the first user bearer token when no user token exists.
 - Optional DB pool tuning: `DB_POOL_MIN_SIZE`, `DB_POOL_MAX_SIZE`, `DB_POOL_TIMEOUT_SECONDS`, `DB_POOL_MAX_IDLE_SECONDS`.
 
@@ -58,13 +59,26 @@ cd frontend
 cp .env.example .env.local
 ```
 
-2. Provide a user bearer token (identity-bearing, per user), for example in dev tools:
+2. Bootstrap a real user token from a trusted server environment:
+
+```bash
+curl -sS -X POST http://localhost:8000/v1/user-token/issue \
+  -H "X-Control-Plane-Token: $CONTROL_PLANE_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+3. Store the returned `userToken` in browser local storage:
 
 ```js
 localStorage.setItem('jarvis_user_token', 'YOUR_USER_BEARER_TOKEN')
 ```
 
-3. Run frontend:
+4. Rotate/revoke user tokens as needed:
+- Rotate: `POST /v1/user-token/rotate` with `Authorization: Bearer <current_user_token>`
+- Revoke: `POST /v1/user-token/revoke` with `Authorization: Bearer <current_user_token>`
+
+5. Run frontend:
 
 ```bash
 cd frontend
@@ -76,6 +90,9 @@ Frontend default URL: `http://localhost:5173`
 
 ## API Surface (MVP)
 
+- `POST /v1/user-token/issue` (`X-Control-Plane-Token` required)
+- `POST /v1/user-token/rotate` (`Authorization: Bearer <user_token>` required)
+- `POST /v1/user-token/revoke` (`Authorization: Bearer <user_token>` required)
 - `GET /v1/agents`
 - `POST /v1/agents`
 - `GET /v1/agents/{id}`

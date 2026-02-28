@@ -30,11 +30,14 @@ from .schemas import (
     InboxItemResponse,
     InboxStatus,
     SpendResponse,
+    UserTokenIssueRequest,
+    UserTokenResponse,
 )
 from .security import (
     generate_agent_token,
     hash_agent_token,
     mask_token_hash,
+    verify_control_plane_token,
 )
 
 settings = get_settings()
@@ -159,7 +162,7 @@ def _require_user_auth(
         """
         select id, email, workspace_id
         from users
-        where api_token_hash = %s
+        where api_token_hash = %s and api_token_revoked_at is null
         """,
         (token_hash,),
     ).fetchone()
@@ -173,11 +176,95 @@ def _require_user_auth(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User is not assigned to a workspace.",
         )
+    connection.execute(
+        """
+        update users
+        set api_token_last_used_at = now()
+        where id = %s::uuid
+        """,
+        (row["id"],),
+    )
 
     return AuthenticatedUser(
         id=row["id"],
         email=row["email"],
         workspace_id=row["workspace_id"],
+    )
+
+
+def _require_control_plane_auth(
+    x_control_plane_token: str | None = Header(default=None, alias="X-Control-Plane-Token"),
+) -> None:
+    if verify_control_plane_token(x_control_plane_token, settings.control_plane_token):
+        return
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid or missing X-Control-Plane-Token.",
+    )
+
+
+def _get_user_for_token_admin(
+    connection: Connection[dict[str, Any]],
+    email: str | None,
+) -> dict[str, Any]:
+    if email:
+        row = connection.execute(
+            """
+            select id, email, api_token_hash, api_token_revoked_at
+            from users
+            where lower(email) = lower(%s)
+            """,
+            (email.strip(),),
+        ).fetchone()
+    else:
+        row = connection.execute(
+            """
+            select id, email, api_token_hash, api_token_revoked_at
+            from users
+            order by created_at asc
+            limit 1
+            """
+        ).fetchone()
+
+    if row is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found.",
+        )
+    return row
+
+
+def _issue_user_token(
+    connection: Connection[dict[str, Any]],
+    user_id: UUID,
+    email: str,
+    had_active_token: bool,
+) -> UserTokenResponse:
+    token = generate_agent_token()
+    token_hash = hash_agent_token(token)
+    row = connection.execute(
+        """
+        update users
+        set
+          api_token_hash = %s,
+          api_token_issued_at = now(),
+          api_token_last_rotated_at = case when %s then now() else null end,
+          api_token_revoked_at = null,
+          api_token_last_used_at = null
+        where id = %s::uuid
+        returning api_token_issued_at, api_token_last_rotated_at
+        """,
+        (token_hash, had_active_token, user_id),
+    ).fetchone()
+    if row is None:
+        raise HTTPException(status_code=500, detail="Failed to issue user token.")
+
+    return UserTokenResponse(
+        userId=user_id,
+        email=email,
+        userToken=token,
+        issuedAt=row["api_token_issued_at"],
+        rotatedAt=row["api_token_last_rotated_at"],
     )
 
 
@@ -228,19 +315,25 @@ def _bootstrap_default_identity(connection: Connection[dict[str, Any]]) -> None:
         """
     )
 
-    has_user_token = connection.execute(
+    has_user_token_or_history = connection.execute(
         """
         select 1
         from users
         where api_token_hash is not null
+          or api_token_issued_at is not null
         limit 1
         """
     ).fetchone()
-    if has_user_token is None:
+    if has_user_token_or_history is None:
         connection.execute(
             """
             update users
-            set api_token_hash = %s
+            set
+              api_token_hash = %s,
+              api_token_issued_at = now(),
+              api_token_last_rotated_at = null,
+              api_token_revoked_at = null,
+              api_token_last_used_at = null
             where id = (
               select id
               from users
@@ -294,6 +387,71 @@ def handle_unique_violation(_: Request, __: psycopg.errors.UniqueViolation) -> J
 @app.get("/healthz")
 def healthz() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.post(
+    "/v1/user-token/issue",
+    response_model=UserTokenResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def issue_user_token(
+    payload: UserTokenIssueRequest | None = None,
+    _: None = Depends(_require_control_plane_auth),
+    connection: Connection[dict[str, Any]] = Depends(get_db),
+) -> UserTokenResponse:
+    email = payload.email if payload else None
+    user_row = _get_user_for_token_admin(connection, email)
+    had_active_token = (
+        user_row["api_token_hash"] is not None
+        and user_row["api_token_revoked_at"] is None
+    )
+    return _issue_user_token(
+        connection=connection,
+        user_id=user_row["id"],
+        email=user_row["email"],
+        had_active_token=had_active_token,
+    )
+
+
+@app.post("/v1/user-token/rotate", response_model=UserTokenResponse)
+def rotate_user_token(
+    auth_user: AuthenticatedUser = Depends(_require_user_auth),
+    connection: Connection[dict[str, Any]] = Depends(get_db),
+) -> UserTokenResponse:
+    return _issue_user_token(
+        connection=connection,
+        user_id=auth_user.id,
+        email=auth_user.email,
+        had_active_token=True,
+    )
+
+
+@app.post(
+    "/v1/user-token/revoke",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
+def revoke_user_token(
+    auth_user: AuthenticatedUser = Depends(_require_user_auth),
+    connection: Connection[dict[str, Any]] = Depends(get_db),
+) -> Response:
+    revoked = connection.execute(
+        """
+        update users
+        set
+          api_token_hash = null,
+          api_token_revoked_at = now()
+        where id = %s::uuid and api_token_revoked_at is null
+        returning id
+        """,
+        (auth_user.id,),
+    ).fetchone()
+    if revoked is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="User token is already revoked.",
+        )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @app.get("/v1/agents", response_model=list[AgentResponse])
