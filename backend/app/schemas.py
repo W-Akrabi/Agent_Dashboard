@@ -115,3 +115,20 @@ class UserTokenResponse(BaseModel):
     userToken: str
     issuedAt: datetime
     rotatedAt: datetime | None = None
+
+
+class UserSignupRequest(BaseModel):
+    email: str = Field(max_length=320)
+    password: str = Field(min_length=8)
+
+
+class UserLoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class AuthResponse(BaseModel):
+    userId: UUID
+    email: str
+    userToken: str
+    issuedAt: datetime

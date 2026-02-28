@@ -198,10 +198,10 @@ export default function LandingPage() {
             <a href="#" className="text-[#A7ACBF] hover:text-white transition-colors text-sm hidden sm:block">
               Docs
             </a>
-            <Link to="/dashboard" className="text-[#A7ACBF] hover:text-white transition-colors text-sm">
+            <Link to="/auth" className="text-[#A7ACBF] hover:text-white transition-colors text-sm">
               Login
             </Link>
-            <Link to="/dashboard" className="btn-primary text-sm">
+            <Link to="/auth" className="btn-primary text-sm">
               Get Started
             </Link>
           </div>
@@ -229,7 +229,7 @@ export default function LandingPage() {
           </p>
           
           <div className="hero-ctas flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link to="/dashboard" className="btn-primary w-full sm:w-auto">
+            <Link to="/auth" className="btn-primary w-full sm:w-auto">
               Request Access
             </Link>
             <a href="#" className="btn-secondary w-full sm:w-auto">
@@ -290,7 +290,7 @@ export default function LandingPage() {
                   </li>
                 ))}
               </ul>
-              <Link to="/dashboard" className="inline-flex items-center gap-2 text-[#4F46E5] hover:gap-3 transition-all">
+              <Link to="/auth" className="inline-flex items-center gap-2 text-[#4F46E5] hover:gap-3 transition-all">
                 Explore the feed <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
@@ -688,7 +688,7 @@ export default function LandingPage() {
             We'll respond within one business day.
           </p>
           <div className="animate-in flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
-            <Link to="/dashboard" className="btn-primary w-full sm:w-auto">
+            <Link to="/auth" className="btn-primary w-full sm:w-auto">
               Request Access
             </Link>
             <a href="#" className="btn-secondary w-full sm:w-auto">

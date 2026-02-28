@@ -22,6 +22,7 @@ from .schemas import (
     AgentEventResponse,
     AgentResponse,
     AgentStatusUpdateRequest,
+    AuthResponse,
     BudgetUpdateRequest,
     CommandResponse,
     EventIngestRequest,
@@ -30,14 +31,18 @@ from .schemas import (
     InboxItemResponse,
     InboxStatus,
     SpendResponse,
+    UserLoginRequest,
+    UserSignupRequest,
     UserTokenIssueRequest,
     UserTokenResponse,
 )
 from .security import (
     generate_agent_token,
     hash_agent_token,
+    hash_password,
     mask_token_hash,
     verify_control_plane_token,
+    verify_password,
 )
 
 settings = get_settings()
@@ -307,6 +312,7 @@ def _ensure_bootstrap_schema_compat(connection: Connection[dict[str, Any]]) -> N
         alter table users add column if not exists api_token_last_rotated_at timestamptz;
         alter table users add column if not exists api_token_revoked_at timestamptz;
         alter table users add column if not exists api_token_last_used_at timestamptz;
+        alter table users add column if not exists password_hash text;
         """
     )
 
@@ -468,6 +474,90 @@ def handle_unique_violation(_: Request, __: psycopg.errors.UniqueViolation) -> J
 @app.get("/healthz")
 def healthz() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.post("/v1/auth/signup", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
+def auth_signup(
+    payload: UserSignupRequest,
+    connection: Connection[dict[str, Any]] = Depends(get_db),
+) -> AuthResponse:
+    email = payload.email.strip().lower()
+    existing = connection.execute(
+        "select id from users where lower(email) = %s",
+        (email,),
+    ).fetchone()
+    if existing is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An account with that email already exists.",
+        )
+
+    new_workspace_id = uuid4()
+    new_user = connection.execute(
+        """
+        insert into users (email, password_hash, workspace_id, monthly_budget)
+        values (%s, %s, %s::uuid, 1000)
+        returning id, email
+        """,
+        (email, hash_password(payload.password), new_workspace_id),
+    ).fetchone()
+    if new_user is None:
+        raise HTTPException(status_code=500, detail="Failed to create user.")
+
+    token_response = _issue_user_token(
+        connection=connection,
+        user_id=new_user["id"],
+        email=new_user["email"],
+        had_active_token=False,
+    )
+    return AuthResponse(
+        userId=token_response.userId,
+        email=token_response.email,
+        userToken=token_response.userToken,
+        issuedAt=token_response.issuedAt,
+    )
+
+
+@app.post("/v1/auth/login", response_model=AuthResponse)
+def auth_login(
+    payload: UserLoginRequest,
+    connection: Connection[dict[str, Any]] = Depends(get_db),
+) -> AuthResponse:
+    email = payload.email.strip().lower()
+    row = connection.execute(
+        """
+        select id, email, password_hash, api_token_hash, api_token_revoked_at
+        from users
+        where lower(email) = %s
+        """,
+        (email,),
+    ).fetchone()
+    if row is None or row["password_hash"] is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password.",
+        )
+    if not verify_password(payload.password, row["password_hash"]):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password.",
+        )
+
+    had_active_token = (
+        row["api_token_hash"] is not None and row["api_token_revoked_at"] is None
+    )
+    token_response = _issue_user_token(
+        connection=connection,
+        user_id=row["id"],
+        email=row["email"],
+        had_active_token=had_active_token,
+    )
+    return AuthResponse(
+        userId=token_response.userId,
+        email=token_response.email,
+        userToken=token_response.userToken,
+        issuedAt=token_response.issuedAt,
+    )
 
 
 @app.post(

@@ -1,7 +1,14 @@
 import type { Agent, AgentEvent, InboxItem, SpendData } from '@/types/index';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8000';
-const USER_TOKEN_STORAGE_KEY = 'jarvis_user_token';
+export const USER_TOKEN_STORAGE_KEY = 'jarvis_user_token';
+
+export type AuthResponse = {
+  userId: string;
+  email: string;
+  userToken: string;
+  issuedAt: string;
+};
 
 export type AgentCreateResponse = {
   agent: Agent;
@@ -122,4 +129,39 @@ export function updateBudget(budget: number) {
     method: 'PATCH',
     body: JSON.stringify({ budget }),
   });
+}
+
+async function authRequest(path: string, body: object): Promise<AuthResponse> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    let message = `Request failed (${response.status})`;
+    try {
+      const data = (await response.json()) as { detail?: string };
+      if (data.detail) message = data.detail;
+    } catch {
+      // fall through
+    }
+    throw new Error(message);
+  }
+
+  const data = (await response.json()) as AuthResponse;
+  window.localStorage.setItem(USER_TOKEN_STORAGE_KEY, data.userToken);
+  return data;
+}
+
+export function signup(email: string, password: string): Promise<AuthResponse> {
+  return authRequest('/v1/auth/signup', { email, password });
+}
+
+export function login(email: string, password: string): Promise<AuthResponse> {
+  return authRequest('/v1/auth/login', { email, password });
+}
+
+export function logout(): void {
+  window.localStorage.removeItem(USER_TOKEN_STORAGE_KEY);
 }

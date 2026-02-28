@@ -13,7 +13,8 @@ create table if not exists users (
   api_token_revoked_at timestamptz,
   api_token_last_used_at timestamptz,
   monthly_budget numeric(12,2) not null default 1000,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  password_hash text
 );
 
 alter table users add column if not exists id uuid;
@@ -42,6 +43,7 @@ alter table users add column if not exists api_token_issued_at timestamptz;
 alter table users add column if not exists api_token_last_rotated_at timestamptz;
 alter table users add column if not exists api_token_revoked_at timestamptz;
 alter table users add column if not exists api_token_last_used_at timestamptz;
+alter table users add column if not exists password_hash text;
 update users
 set api_token_issued_at = coalesce(api_token_issued_at, created_at)
 where api_token_hash is not null
