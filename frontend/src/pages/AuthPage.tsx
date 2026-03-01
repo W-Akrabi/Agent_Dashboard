@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bot, Mail, Lock } from 'lucide-react';
-import { login, signup } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 
 type Mode = 'login' | 'signup';
 
@@ -13,6 +13,7 @@ export default function AuthPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -24,18 +25,87 @@ export default function AuthPage() {
     }
 
     setLoading(true);
+
     try {
       if (mode === 'login') {
-        await login(email, password);
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+          setError(error.message);
+        } else {
+          navigate('/dashboard', { replace: true });
+        }
       } else {
-        await signup(email, password);
+        const { error } = await supabase.auth.signUp({ email, password });
+        if (error) {
+          setError(error.message);
+        } else {
+          setEmailSent(true);
+        }
       }
-      navigate('/dashboard', { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong.');
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleResend() {
+    try {
+      await supabase.auth.resend({ type: 'signup', email });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to resend email.');
+    }
+  }
+
+  if (emailSent) {
+    return (
+      <div className="min-h-screen bg-[#05060B] text-[#F4F6FF] flex items-center justify-center px-4">
+        <div className="w-full max-w-md">
+          {/* Logo */}
+          <div className="flex items-center justify-center gap-3 mb-8">
+            <div className="w-10 h-10 rounded-lg bg-[#4F46E5] flex items-center justify-center">
+              <Bot className="w-6 h-6 text-white" />
+            </div>
+            <span className="font-bold text-2xl tracking-tight">JARVIS</span>
+          </div>
+
+          <div className="data-card p-8 bg-[#0B0E16] text-center">
+            <div className="w-16 h-16 rounded-full bg-[#4F46E5]/20 border border-[#4F46E5]/30 flex items-center justify-center mx-auto mb-6">
+              <Mail className="w-8 h-8 text-[#4F46E5]" />
+            </div>
+
+            <h2 className="text-xl font-semibold mb-2">Check your email</h2>
+            <p className="text-[#A7ACBF] text-sm mb-1">
+              We sent a confirmation link to
+            </p>
+            <p className="text-[#F4F6FF] font-medium text-sm mb-6">{email}</p>
+
+            <p className="text-[#A7ACBF] text-sm mb-6">
+              Click the link in the email to activate your account. The link expires in 24 hours.
+            </p>
+
+            <div className="border-t border-white/10 pt-6">
+              <p className="text-[#A7ACBF] text-sm mb-3">Didn't receive it?</p>
+              <button
+                type="button"
+                onClick={handleResend}
+                className="text-[#4F46E5] hover:text-[#6366F1] text-sm font-medium transition-colors"
+              >
+                Resend email
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => { setEmailSent(false); setMode('login'); setError(''); }}
+              className="mt-6 flex items-center gap-2 text-[#A7ACBF] hover:text-white transition-colors text-sm mx-auto"
+            >
+              ← Back to Log In
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

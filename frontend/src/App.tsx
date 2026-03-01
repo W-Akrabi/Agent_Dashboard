@@ -11,6 +11,7 @@ import Agents from './pages/Agents';
 import AgentDetail from './pages/AgentDetail';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
+import { AuthProvider } from './contexts/AuthContext';
 import { Workshop } from './views/Workshop';
 import { Momentum } from './views/Momentum';
 import { Scheduler } from './views/Scheduler';
@@ -46,31 +47,33 @@ export default function App() {
   }
 
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/auth" element={<AuthPage />} />
-        <Route element={<ProtectedRoute />}>
-          <Route element={<Layout />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/inbox" element={<Inbox />} />
-            <Route path="/spend" element={<Spend />} />
-            <Route path="/agents" element={<Agents />} />
-            <Route path="/agents/:id" element={<AgentDetail />} />
-            <Route path="/workshop" element={<Workshop />} />
-            <Route path="/momentum" element={<Momentum />} />
-            <Route path="/scheduler" element={<Scheduler />} />
-            <Route path="/multi-agent" element={<MultiAgent />} />
-            <Route path="/comms" element={<CommsHub />} />
-            <Route path="/sleep" element={<SleepMode />} />
-            <Route path="/fix-ui" element={<FixUI />} />
-            <Route path="/memory" element={<Memory />} />
-            <Route path="/key-vault" element={<KeyVault />} />
-            <Route path="/glue" element={<IngestApi />} />
+    <AuthProvider>
+      <Router>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/auth" element={<AuthPage />} />
+          <Route element={<ProtectedRoute />}>
+            <Route element={<Layout />}>
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/inbox" element={<Inbox />} />
+              <Route path="/spend" element={<Spend />} />
+              <Route path="/agents" element={<Agents />} />
+              <Route path="/agents/:id" element={<AgentDetail />} />
+              <Route path="/workshop" element={<Workshop />} />
+              <Route path="/momentum" element={<Momentum />} />
+              <Route path="/scheduler" element={<Scheduler />} />
+              <Route path="/multi-agent" element={<MultiAgent />} />
+              <Route path="/comms" element={<CommsHub />} />
+              <Route path="/sleep" element={<SleepMode />} />
+              <Route path="/fix-ui" element={<FixUI />} />
+              <Route path="/memory" element={<Memory />} />
+              <Route path="/key-vault" element={<KeyVault />} />
+              <Route path="/glue" element={<IngestApi />} />
+            </Route>
           </Route>
-        </Route>
-        <Route path="*" element={<Navigate to="/auth" replace />} />
-      </Routes>
-    </Router>
+          <Route path="*" element={<Navigate to="/auth" replace />} />
+        </Routes>
+      </Router>
+    </AuthProvider>
   );
 }

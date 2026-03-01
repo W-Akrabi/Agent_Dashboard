@@ -1,14 +1,7 @@
 import type { Agent, AgentEvent, InboxItem, SpendData } from '@/types/index';
+import { supabase } from '@/lib/supabase';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8000';
-export const USER_TOKEN_STORAGE_KEY = 'jarvis_user_token';
-
-export type AuthResponse = {
-  userId: string;
-  email: string;
-  userToken: string;
-  issuedAt: string;
-};
 
 export type AgentCreateResponse = {
   agent: Agent;
@@ -22,9 +15,10 @@ type RequestOptions = RequestInit & {
 };
 
 async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const userToken = window.localStorage.getItem(USER_TOKEN_STORAGE_KEY)?.trim();
-  if (!userToken) {
-    throw new Error(`Missing user token. Set localStorage['${USER_TOKEN_STORAGE_KEY}'] to a valid bearer token.`);
+  const { data: { session } } = await supabase.auth.getSession();
+
+  if (!session || !session.access_token) {
+    throw new Error('Not authenticated');
   }
 
   const { query, ...init } = options;
@@ -38,14 +32,29 @@ async function apiRequest<T>(path: string, options: RequestOptions = {}): Promis
     });
   }
 
-  const response = await fetch(url.toString(), {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${userToken}`,
-      ...(init.headers ?? {}),
-    },
-  });
+  const makeRequest = (token: string) =>
+    fetch(url.toString(), {
+      ...init,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        ...(init.headers ?? {}),
+      },
+    });
+
+  let response = await makeRequest(session.access_token);
+
+  if (response.status === 401) {
+    const { data: refreshData } = await supabase.auth.refreshSession();
+    if (refreshData.session) {
+      response = await makeRequest(refreshData.session.access_token);
+      if (response.status === 401) {
+        throw new Error(`Request failed (401)`);
+      }
+    } else {
+      throw new Error(`Request failed (401)`);
+    }
+  }
 
   if (!response.ok) {
     let message = `Request failed (${response.status})`;
@@ -129,39 +138,4 @@ export function updateBudget(budget: number) {
     method: 'PATCH',
     body: JSON.stringify({ budget }),
   });
-}
-
-async function authRequest(path: string, body: object): Promise<AuthResponse> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-
-  if (!response.ok) {
-    let message = `Request failed (${response.status})`;
-    try {
-      const data = (await response.json()) as { detail?: string };
-      if (data.detail) message = data.detail;
-    } catch {
-      // fall through
-    }
-    throw new Error(message);
-  }
-
-  const data = (await response.json()) as AuthResponse;
-  window.localStorage.setItem(USER_TOKEN_STORAGE_KEY, data.userToken);
-  return data;
-}
-
-export function signup(email: string, password: string): Promise<AuthResponse> {
-  return authRequest('/v1/auth/signup', { email, password });
-}
-
-export function login(email: string, password: string): Promise<AuthResponse> {
-  return authRequest('/v1/auth/login', { email, password });
-}
-
-export function logout(): void {
-  window.localStorage.removeItem(USER_TOKEN_STORAGE_KEY);
 }

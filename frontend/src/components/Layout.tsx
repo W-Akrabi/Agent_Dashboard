@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { Outlet, Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   Inbox, 
@@ -21,6 +21,8 @@ import {
   Bell
 } from 'lucide-react';
 import { getInbox } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 
 const sidebarItems = [
   { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
@@ -41,7 +43,7 @@ const sidebarItems = [
 
 export default function Layout() {
   const location = useLocation();
-  const navigate = useNavigate();
+  const { user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
   const [scrolled, setScrolled] = useState(false);
@@ -78,6 +80,11 @@ export default function Layout() {
       window.clearInterval(intervalId);
     };
   }, []);
+
+  const email = user?.email ?? '';
+  const localPart = email.split('@')[0];
+  const initials = localPart.slice(0, 2).toUpperCase();
+  const displayName = localPart.charAt(0).toUpperCase() + localPart.slice(1);
 
   const isActive = (path: string) => {
     if (path === '/agents') return location.pathname.startsWith('/agents');
@@ -141,15 +148,15 @@ export default function Layout() {
         <div className="absolute bottom-0 left-0 right-0 p-6 border-t border-white/5">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#4F46E5] to-[#7C3AED] flex items-center justify-center text-white font-semibold">
-              JD
+              {initials}
             </div>
             <div>
-              <p className="font-medium text-sm">John Doe</p>
-              <p className="text-xs text-[#A7ACBF]">john@example.com</p>
+              <p className="font-medium text-sm">{displayName}</p>
+              <p className="text-xs text-[#A7ACBF]">{email}</p>
             </div>
           </div>
-          <button 
-            onClick={() => navigate('/')}
+          <button
+            onClick={() => supabase.auth.signOut()}
             className="flex items-center gap-2 text-[#A7ACBF] hover:text-white transition-colors text-sm"
           >
             <LogOut className="w-4 h-4" />
