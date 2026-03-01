@@ -6,17 +6,97 @@ import { ContainerScroll } from '@/components/ui/container-scroll-animation';
 import { SplineScene } from '@/components/ui/splite';
 import { Spotlight } from '@/components/ui/spotlight';
 import { Header1 } from '@/components/ui/header';
-import { 
-  Activity, 
-  Shield, 
-  CheckCircle, 
-  XCircle, 
+import {
+  Activity,
+  Shield,
+  CheckCircle,
+  XCircle,
   ArrowRight,
   Bot,
   Lock,
   Code,
-  Settings
+  Settings,
+  Search,
+  Inbox,
+  DollarSign,
+  Terminal,
 } from 'lucide-react';
+import { forwardRef, useRef as useRefBeam } from 'react';
+import { AnimatedBeam } from '@/registry/magicui/animated-beam';
+import { cn } from '@/lib/utils';
+
+const BeamCircle = forwardRef<HTMLDivElement, { className?: string; children?: React.ReactNode }>(
+  ({ className, children }, ref) => (
+    <div
+      ref={ref}
+      className={cn(
+        'z-10 flex size-12 items-center justify-center rounded-full border border-white/10 bg-[#0D0E1A] shadow-lg',
+        className,
+      )}
+    >
+      {children}
+    </div>
+  ),
+);
+BeamCircle.displayName = 'BeamCircle';
+
+function JarvisBeam() {
+  const containerRef = useRefBeam<HTMLDivElement>(null);
+  const agentCode   = useRefBeam<HTMLDivElement>(null);
+  const agentSearch = useRefBeam<HTMLDivElement>(null);
+  const agentOps    = useRefBeam<HTMLDivElement>(null);
+  const hub         = useRefBeam<HTMLDivElement>(null);
+  const outActivity = useRefBeam<HTMLDivElement>(null);
+  const outInbox    = useRefBeam<HTMLDivElement>(null);
+  const outSpend    = useRefBeam<HTMLDivElement>(null);
+
+  return (
+    <div ref={containerRef} className="relative flex h-[280px] w-full max-w-lg mx-auto items-center justify-center overflow-hidden">
+      <div className="flex size-full flex-col items-stretch justify-between">
+        {/* Row 1 */}
+        <div className="flex flex-row items-center justify-between">
+          <BeamCircle ref={agentCode}>
+            <Terminal className="w-5 h-5 text-[#4F46E5]" />
+          </BeamCircle>
+          <BeamCircle ref={outActivity}>
+            <Activity className="w-5 h-5 text-green-400" />
+          </BeamCircle>
+        </div>
+        {/* Row 2 */}
+        <div className="flex flex-row items-center justify-between">
+          <BeamCircle ref={agentSearch}>
+            <Search className="w-5 h-5 text-[#4F46E5]" />
+          </BeamCircle>
+          <BeamCircle ref={hub} className="size-16 border-[#4F46E5]/50 bg-[#4F46E5]/10">
+            <Bot className="w-7 h-7 text-[#4F46E5]" />
+          </BeamCircle>
+          <BeamCircle ref={outInbox}>
+            <Inbox className="w-5 h-5 text-orange-400" />
+          </BeamCircle>
+        </div>
+        {/* Row 3 */}
+        <div className="flex flex-row items-center justify-between">
+          <BeamCircle ref={agentOps}>
+            <Settings className="w-5 h-5 text-[#4F46E5]" />
+          </BeamCircle>
+          <BeamCircle ref={outSpend}>
+            <DollarSign className="w-5 h-5 text-yellow-400" />
+          </BeamCircle>
+        </div>
+      </div>
+
+      {/* Agents → Hub */}
+      <AnimatedBeam containerRef={containerRef} fromRef={agentCode}   toRef={hub} curvature={-60} endYOffset={-10} />
+      <AnimatedBeam containerRef={containerRef} fromRef={agentSearch} toRef={hub} />
+      <AnimatedBeam containerRef={containerRef} fromRef={agentOps}    toRef={hub} curvature={60}  endYOffset={10}  />
+
+      {/* Hub → Outputs */}
+      <AnimatedBeam containerRef={containerRef} fromRef={hub} toRef={outActivity} curvature={-60} endYOffset={-10} reverse />
+      <AnimatedBeam containerRef={containerRef} fromRef={hub} toRef={outInbox}                                     reverse />
+      <AnimatedBeam containerRef={containerRef} fromRef={hub} toRef={outSpend}    curvature={60}  endYOffset={10}  reverse />
+    </div>
+  );
+}
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -253,6 +333,50 @@ export default function LandingPage() {
             draggable={false}
           />
         </ContainerScroll>
+      </section>
+
+      {/* How it works — Animated Beam */}
+      <section className="py-24 md:py-32 relative">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+            <div>
+              <span className="eyebrow text-[#4F46E5] mb-4 block">How it works</span>
+              <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6">
+                Agents report in.<br />
+                <span className="text-gradient">Jarvis takes control.</span>
+              </h2>
+              <p className="text-[#A7ACBF] text-lg mb-8">
+                Your agents send events to Jarvis as they run. Jarvis routes each one to the right
+                place — the live activity feed, the approval inbox if a decision is needed, or the
+                spend tracker to log the cost. One integration, full visibility.
+              </p>
+              <div className="space-y-4">
+                {[
+                  { icon: Terminal,  color: 'text-[#4F46E5]', label: 'code-agent',     desc: 'Generates, tests, and commits code' },
+                  { icon: Search,    color: 'text-[#4F46E5]', label: 'research-agent', desc: 'Searches the web and compiles reports' },
+                  { icon: Settings,  color: 'text-[#4F46E5]', label: 'ops-agent',      desc: 'Monitors alerts and files tickets' },
+                ].map((item) => (
+                  <div key={item.label} className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-[#4F46E5]/10 flex items-center justify-center shrink-0">
+                      <item.icon className={`w-4 h-4 ${item.color}`} />
+                    </div>
+                    <span className="text-sm font-mono text-white">{item.label}</span>
+                    <span className="text-sm text-[#A7ACBF]">— {item.desc}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-col items-center gap-6">
+              <JarvisBeam />
+              <div className="flex gap-8 text-xs text-[#A7ACBF]">
+                <span className="flex items-center gap-1.5"><Activity className="w-3.5 h-3.5 text-green-400" /> Live Feed</span>
+                <span className="flex items-center gap-1.5"><Inbox    className="w-3.5 h-3.5 text-orange-400" /> Approvals</span>
+                <span className="flex items-center gap-1.5"><DollarSign className="w-3.5 h-3.5 text-yellow-400" /> Spend</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
 
       {/* Live Activity Section */}
