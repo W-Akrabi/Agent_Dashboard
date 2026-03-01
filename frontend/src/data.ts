@@ -1,5 +1,5 @@
 import type {
-    NavItem, Activity, KanbanColumn, MomentumTask,
+    NavItem, Activity, KanbanColumn,
     AgentSpend, SchedulerJob, AutomationRule, ChatMessage,
     MemoryEntry, VaultKey
 } from './types';
@@ -9,13 +9,10 @@ export const NAV_ITEMS: NavItem[] = [
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
     { id: 'inbox', label: 'Inbox', icon: '📥' },
     { id: 'workshop', label: 'Workshop', icon: '📋' },
-    { id: 'momentum', label: 'Momentum', icon: '🔥' },
     { id: 'spend', label: 'API Spend', icon: '💸' },
     { id: 'scheduler', label: 'Scheduler', icon: '⏱️' },
-    { id: 'multi-agent', label: 'Multi-Agent', icon: '🕸️' },
     { id: 'comms', label: 'Comms Hub', icon: '💬' },
     { id: 'sleep', label: 'Sleep Mode', icon: '🌙' },
-    { id: 'fix-ui', label: 'Fix UI', icon: '🖼️' },
     { id: 'memory', label: 'Memory', icon: '🧠' },
     { id: 'key-vault', label: 'Key Vault', icon: '🔐' },
     { id: 'ingest-api', label: 'The Glue', icon: '🔌' },
@@ -131,13 +128,6 @@ export const KANBAN_COLUMNS: KanbanColumn[] = [
         id: 'done', label: 'Done',
         cards: [{ title: 'Scrape newest leads', agent: 'Sales Bot' }],
     },
-];
-
-export const MOMENTUM_TASKS: MomentumTask[] = [
-    { rank: 1, title: 'Prevent churn for Acme Corp', reason: 'Account usage dropped 80% this week. Highly likely to cancel.', priority: 'Critical', priorityClass: 'priority-critical' },
-    { rank: 2, title: 'Review Q3 Marketing Spend', reason: 'Ad campaigns are running 25% over budget in the last 48 hours.', priority: 'High', priorityClass: 'priority-high' },
-    { rank: 3, title: 'Approve new pricing page copy', reason: 'Blocks Writer Agent from publishing to staging.', priority: 'High', priorityClass: 'priority-high' },
-    { rank: 4, title: 'Categorize unknown transactions', reason: 'Finance Agent needs human input to close out monthly books.', priority: 'Medium', priorityClass: 'priority-medium' },
 ];
 
 export const AGENT_SPEND: AgentSpend[] = [

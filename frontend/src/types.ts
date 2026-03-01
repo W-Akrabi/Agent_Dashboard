@@ -2,13 +2,10 @@ export type TabId =
     | 'dashboard'
     | 'inbox'
     | 'workshop'
-    | 'momentum'
     | 'spend'
     | 'scheduler'
-    | 'multi-agent'
     | 'comms'
     | 'sleep'
-    | 'fix-ui'
     | 'memory'
     | 'key-vault'
     | 'ingest-api';
@@ -34,14 +31,6 @@ export interface KanbanColumn {
     id: string;
     label: string;
     cards: KanbanCard[];
-}
-
-export interface MomentumTask {
-    rank: number;
-    title: string;
-    reason: string;
-    priority: 'Critical' | 'High' | 'Medium';
-    priorityClass: 'priority-critical' | 'priority-high' | 'priority-medium';
 }
 
 export interface AgentSpend {

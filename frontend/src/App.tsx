@@ -14,12 +14,9 @@ import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
 import { InvalidationProvider } from './contexts/InvalidationContext';
 import { Workshop } from './views/Workshop';
-import { Momentum } from './views/Momentum';
 import { Scheduler } from './views/Scheduler';
-import { MultiAgent } from './views/MultiAgent';
 import { CommsHub } from './views/CommsHub';
 import { SleepMode } from './views/SleepMode';
-import { FixUI } from './views/FixUI';
 import { Memory } from './views/Memory';
 import { KeyVault } from './views/KeyVault';
 import { IngestApi } from './views/IngestApi';
@@ -62,12 +59,9 @@ export default function App() {
               <Route path="/agents" element={<Agents />} />
               <Route path="/agents/:id" element={<AgentDetail />} />
               <Route path="/workshop" element={<Workshop />} />
-              <Route path="/momentum" element={<Momentum />} />
               <Route path="/scheduler" element={<Scheduler />} />
-              <Route path="/multi-agent" element={<MultiAgent />} />
               <Route path="/comms" element={<CommsHub />} />
               <Route path="/sleep" element={<SleepMode />} />
-              <Route path="/fix-ui" element={<FixUI />} />
               <Route path="/memory" element={<Memory />} />
               <Route path="/key-vault" element={<KeyVault />} />
               <Route path="/glue" element={<IngestApi />} />

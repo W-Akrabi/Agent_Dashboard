@@ -31,11 +31,6 @@ const TAB_ICONS: Record<string, React.ReactNode> = {
             <rect width="8" height="18" x="2" y="3" rx="1" /><rect width="8" height="7" x="14" y="3" rx="1" /><rect width="8" height="7" x="14" y="14" rx="1" />
         </svg>
     ),
-    momentum: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-        </svg>
-    ),
     spend: (
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="10" /><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" /><path d="M12 6v2m0 8v2" />
@@ -46,13 +41,6 @@ const TAB_ICONS: Record<string, React.ReactNode> = {
             <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
         </svg>
     ),
-    'multi-agent': (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="5" r="3" /><line x1="12" y1="8" x2="12" y2="10" />
-            <circle cx="5" cy="19" r="3" /><line x1="5" y1="16" x2="5" y2="14" /><line x1="5" y1="14" x2="12" y2="10" />
-            <circle cx="19" cy="19" r="3" /><line x1="19" y1="16" x2="19" y2="14" /><line x1="19" y1="14" x2="12" y2="10" />
-        </svg>
-    ),
     comms: (
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
@@ -61,12 +49,6 @@ const TAB_ICONS: Record<string, React.ReactNode> = {
     sleep: (
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-        </svg>
-    ),
-    'fix-ui': (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect width="18" height="14" x="3" y="3" rx="2" /><line x1="3" y1="9" x2="21" y2="9" />
-            <circle cx="8" cy="6" r="1" fill="currentColor" /><circle cx="12" cy="6" r="1" fill="currentColor" />
         </svg>
     ),
     memory: (
