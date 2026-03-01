@@ -57,6 +57,7 @@ class Settings:
     cors_origins: list[str]
     cors_origin_regex: str
     control_plane_token: str
+    supabase_jwt_secret: str
 
 
 @lru_cache(maxsize=1)
@@ -75,4 +76,5 @@ def get_settings() -> Settings:
             r"https?://(localhost|127\.0\.0\.1)(:\d+)?$",
         ),
         control_plane_token=_require_env("CONTROL_PLANE_TOKEN"),
+        supabase_jwt_secret=_require_env("SUPABASE_JWT_SECRET"),
     )

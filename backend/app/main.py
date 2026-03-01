@@ -5,8 +5,9 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import UUID
 
+import jwt
 import psycopg
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -22,7 +23,6 @@ from .schemas import (
     AgentEventResponse,
     AgentResponse,
     AgentStatusUpdateRequest,
-    AuthResponse,
     BudgetUpdateRequest,
     CommandResponse,
     EventIngestRequest,
@@ -31,18 +31,12 @@ from .schemas import (
     InboxItemResponse,
     InboxStatus,
     SpendResponse,
-    UserLoginRequest,
-    UserSignupRequest,
-    UserTokenIssueRequest,
-    UserTokenResponse,
 )
 from .security import (
     generate_agent_token,
     hash_agent_token,
-    hash_password,
     mask_token_hash,
     verify_control_plane_token,
-    verify_password,
 )
 
 settings = get_settings()
@@ -162,33 +156,54 @@ def _require_user_auth(
     authorization: str | None = Header(default=None, alias="Authorization"),
     connection: Connection[dict[str, Any]] = Depends(get_db),
 ) -> AuthenticatedUser:
-    token_hash = hash_agent_token(_extract_bearer_token(authorization))
+    token = _extract_bearer_token(authorization)
+    try:
+        payload = jwt.decode(
+            token,
+            settings.supabase_jwt_secret,
+            algorithms=["HS256"],
+            options={"verify_aud": False},
+        )
+    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token.",
+        )
+
+    user_id_str = payload.get("sub")
+    if not user_id_str:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token.",
+        )
+
+    # Validate sub as a valid UUID before querying database
+    try:
+        user_id = UUID(user_id_str)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token.",
+        )
+
     row = connection.execute(
         """
         select id, email, workspace_id
         from users
-        where api_token_hash = %s and api_token_revoked_at is null
+        where id = %s::uuid
         """,
-        (token_hash,),
+        (user_id,),
     ).fetchone()
     if row is None:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid user token.",
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User account not found.",
         )
     if row["workspace_id"] is None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User is not assigned to a workspace.",
         )
-    connection.execute(
-        """
-        update users
-        set api_token_last_used_at = now()
-        where id = %s::uuid
-        """,
-        (row["id"],),
-    )
 
     return AuthenticatedUser(
         id=row["id"],
@@ -205,71 +220,6 @@ def _require_control_plane_auth(
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Invalid or missing X-Control-Plane-Token.",
-    )
-
-
-def _get_user_for_token_admin(
-    connection: Connection[dict[str, Any]],
-    email: str | None,
-) -> dict[str, Any]:
-    if email:
-        row = connection.execute(
-            """
-            select id, email, api_token_hash, api_token_revoked_at
-            from users
-            where lower(email) = lower(%s)
-            """,
-            (email.strip(),),
-        ).fetchone()
-    else:
-        row = connection.execute(
-            """
-            select id, email, api_token_hash, api_token_revoked_at
-            from users
-            order by created_at asc
-            limit 1
-            """
-        ).fetchone()
-
-    if row is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found.",
-        )
-    return row
-
-
-def _issue_user_token(
-    connection: Connection[dict[str, Any]],
-    user_id: UUID,
-    email: str,
-    had_active_token: bool,
-) -> UserTokenResponse:
-    token = generate_agent_token()
-    token_hash = hash_agent_token(token)
-    row = connection.execute(
-        """
-        update users
-        set
-          api_token_hash = %s,
-          api_token_issued_at = now(),
-          api_token_last_rotated_at = case when %s then now() else null end,
-          api_token_revoked_at = null,
-          api_token_last_used_at = null
-        where id = %s::uuid
-        returning api_token_issued_at, api_token_last_rotated_at
-        """,
-        (token_hash, had_active_token, user_id),
-    ).fetchone()
-    if row is None:
-        raise HTTPException(status_code=500, detail="Failed to issue user token.")
-
-    return UserTokenResponse(
-        userId=user_id,
-        email=email,
-        userToken=token,
-        issuedAt=row["api_token_issued_at"],
-        rotatedAt=row["api_token_last_rotated_at"],
     )
 
 
@@ -303,141 +253,9 @@ def _fetch_agent(
     return _agent_from_row(row)
 
 
-def _ensure_bootstrap_schema_compat(connection: Connection[dict[str, Any]]) -> None:
-    connection.execute(
-        """
-        alter table users add column if not exists workspace_id uuid;
-        alter table users add column if not exists api_token_hash text;
-        alter table users add column if not exists api_token_issued_at timestamptz;
-        alter table users add column if not exists api_token_last_rotated_at timestamptz;
-        alter table users add column if not exists api_token_revoked_at timestamptz;
-        alter table users add column if not exists api_token_last_used_at timestamptz;
-        alter table users add column if not exists password_hash text;
-        """
-    )
-
-    missing_user_workspaces = connection.execute(
-        """
-        select id
-        from users
-        where workspace_id is null
-        """
-    ).fetchall()
-    for row in missing_user_workspaces:
-        connection.execute(
-            """
-            update users
-            set workspace_id = %s::uuid
-            where id = %s::uuid
-            """,
-            (uuid4(), row["id"]),
-        )
-
-    connection.execute(
-        """
-        alter table users alter column workspace_id set not null
-        """
-    )
-
-    connection.execute(
-        """
-        alter table agents add column if not exists owner_user_id uuid;
-        alter table agents add column if not exists workspace_id uuid;
-        alter table agents add column if not exists description text;
-        """
-    )
-
-    primary_workspace_row = connection.execute(
-        """
-        select workspace_id
-        from users
-        order by created_at asc
-        limit 1
-        """
-    ).fetchone()
-    primary_workspace_id = (
-        primary_workspace_row["workspace_id"] if primary_workspace_row else uuid4()
-    )
-    connection.execute(
-        """
-        update agents
-        set workspace_id = %s::uuid
-        where workspace_id is null
-        """,
-        (primary_workspace_id,),
-    )
-    connection.execute(
-        """
-        alter table agents alter column workspace_id set not null
-        """
-    )
-
-
-def _bootstrap_default_identity(connection: Connection[dict[str, Any]]) -> None:
-    owner_workspace_id = uuid4()
-    connection.execute(
-        """
-        insert into users (email, monthly_budget, workspace_id)
-        values ('owner@jarvis.local', 1000, %s::uuid)
-        on conflict (email) do nothing
-        """,
-        (owner_workspace_id,),
-    )
-
-    missing_user_workspaces = connection.execute(
-        """
-        select id
-        from users
-        where workspace_id is null
-        """
-    ).fetchall()
-    for row in missing_user_workspaces:
-        connection.execute(
-            """
-            update users
-            set workspace_id = %s::uuid
-            where id = %s::uuid
-            """,
-            (uuid4(), row["id"]),
-        )
-
-    has_user_token_or_history = connection.execute(
-        """
-        select 1
-        from users
-        where api_token_hash is not null
-          or api_token_issued_at is not null
-        limit 1
-        """
-    ).fetchone()
-    if has_user_token_or_history is None:
-        connection.execute(
-            """
-            update users
-            set
-              api_token_hash = %s,
-              api_token_issued_at = now(),
-              api_token_last_rotated_at = null,
-              api_token_revoked_at = null,
-              api_token_last_used_at = null
-            where id = (
-              select id
-              from users
-              order by created_at asc
-              limit 1
-            )
-            """,
-            (hash_agent_token(settings.control_plane_token),),
-        )
-
-
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     init_db_pool(settings)
-    pool = get_db_pool()
-    with pool.connection() as connection:
-        _ensure_bootstrap_schema_compat(connection)
-        _bootstrap_default_identity(connection)
     try:
         yield
     finally:
@@ -474,155 +292,6 @@ def handle_unique_violation(_: Request, __: psycopg.errors.UniqueViolation) -> J
 @app.get("/healthz")
 def healthz() -> dict[str, str]:
     return {"status": "ok"}
-
-
-@app.post("/v1/auth/signup", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
-def auth_signup(
-    payload: UserSignupRequest,
-    connection: Connection[dict[str, Any]] = Depends(get_db),
-) -> AuthResponse:
-    email = payload.email.strip().lower()
-    existing = connection.execute(
-        "select id from users where lower(email) = %s",
-        (email,),
-    ).fetchone()
-    if existing is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="An account with that email already exists.",
-        )
-
-    new_workspace_id = uuid4()
-    new_user = connection.execute(
-        """
-        insert into users (email, password_hash, workspace_id, monthly_budget)
-        values (%s, %s, %s::uuid, 1000)
-        returning id, email
-        """,
-        (email, hash_password(payload.password), new_workspace_id),
-    ).fetchone()
-    if new_user is None:
-        raise HTTPException(status_code=500, detail="Failed to create user.")
-
-    token_response = _issue_user_token(
-        connection=connection,
-        user_id=new_user["id"],
-        email=new_user["email"],
-        had_active_token=False,
-    )
-    return AuthResponse(
-        userId=token_response.userId,
-        email=token_response.email,
-        userToken=token_response.userToken,
-        issuedAt=token_response.issuedAt,
-    )
-
-
-@app.post("/v1/auth/login", response_model=AuthResponse)
-def auth_login(
-    payload: UserLoginRequest,
-    connection: Connection[dict[str, Any]] = Depends(get_db),
-) -> AuthResponse:
-    email = payload.email.strip().lower()
-    row = connection.execute(
-        """
-        select id, email, password_hash, api_token_hash, api_token_revoked_at
-        from users
-        where lower(email) = %s
-        """,
-        (email,),
-    ).fetchone()
-    if row is None or row["password_hash"] is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password.",
-        )
-    if not verify_password(payload.password, row["password_hash"]):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password.",
-        )
-
-    had_active_token = (
-        row["api_token_hash"] is not None and row["api_token_revoked_at"] is None
-    )
-    token_response = _issue_user_token(
-        connection=connection,
-        user_id=row["id"],
-        email=row["email"],
-        had_active_token=had_active_token,
-    )
-    return AuthResponse(
-        userId=token_response.userId,
-        email=token_response.email,
-        userToken=token_response.userToken,
-        issuedAt=token_response.issuedAt,
-    )
-
-
-@app.post(
-    "/v1/user-token/issue",
-    response_model=UserTokenResponse,
-    status_code=status.HTTP_201_CREATED,
-)
-def issue_user_token(
-    payload: UserTokenIssueRequest | None = None,
-    _: None = Depends(_require_control_plane_auth),
-    connection: Connection[dict[str, Any]] = Depends(get_db),
-) -> UserTokenResponse:
-    email = payload.email if payload else None
-    user_row = _get_user_for_token_admin(connection, email)
-    had_active_token = (
-        user_row["api_token_hash"] is not None
-        and user_row["api_token_revoked_at"] is None
-    )
-    return _issue_user_token(
-        connection=connection,
-        user_id=user_row["id"],
-        email=user_row["email"],
-        had_active_token=had_active_token,
-    )
-
-
-@app.post("/v1/user-token/rotate", response_model=UserTokenResponse)
-def rotate_user_token(
-    auth_user: AuthenticatedUser = Depends(_require_user_auth),
-    connection: Connection[dict[str, Any]] = Depends(get_db),
-) -> UserTokenResponse:
-    return _issue_user_token(
-        connection=connection,
-        user_id=auth_user.id,
-        email=auth_user.email,
-        had_active_token=True,
-    )
-
-
-@app.post(
-    "/v1/user-token/revoke",
-    status_code=status.HTTP_204_NO_CONTENT,
-    response_class=Response,
-)
-def revoke_user_token(
-    auth_user: AuthenticatedUser = Depends(_require_user_auth),
-    connection: Connection[dict[str, Any]] = Depends(get_db),
-) -> Response:
-    revoked = connection.execute(
-        """
-        update users
-        set
-          api_token_hash = null,
-          api_token_revoked_at = now()
-        where id = %s::uuid and api_token_revoked_at is null
-        returning id
-        """,
-        (auth_user.id,),
-    ).fetchone()
-    if revoked is None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="User token is already revoked.",
-        )
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @app.get("/v1/agents", response_model=list[AgentResponse])
@@ -833,12 +502,23 @@ def ingest_event(
     connection: Connection[dict[str, Any]] = Depends(get_db),
 ) -> EventIngestResponse:
     agent_id = _require_agent_id(connection, x_agent_token)
+    
+    # Fetch agent's workspace_id
+    agent_row = connection.execute(
+        "select workspace_id from agents where id = %s::uuid",
+        (agent_id,),
+    ).fetchone()
+    if agent_row is None:
+        raise HTTPException(status_code=404, detail="Agent not found.")
+    agent_workspace_id = agent_row["workspace_id"]
+    
     proposed_action = payload.proposedAction if payload.requiresApproval else None
 
     event_row = connection.execute(
         """
         insert into events (
           agent_id,
+          workspace_id,
           type,
           message,
           cost,
@@ -846,7 +526,7 @@ def ingest_event(
           proposed_action,
           completed_actions
         )
-        values (%s::uuid, %s, %s, %s, %s, %s, %s)
+        values (%s::uuid, %s::uuid, %s, %s, %s, %s, %s, %s)
         returning
           id,
           agent_id,
@@ -857,6 +537,7 @@ def ingest_event(
         """,
         (
             agent_id,
+            agent_workspace_id,
             payload.type,
             payload.message,
             payload.cost,
@@ -886,11 +567,11 @@ def ingest_event(
             )
         task_row = connection.execute(
             """
-            insert into tasks (agent_id, proposed_action, completed_actions, status)
-            values (%s::uuid, %s, %s, 'pending')
+            insert into tasks (agent_id, workspace_id, proposed_action, completed_actions, status)
+            values (%s::uuid, %s::uuid, %s, %s, 'pending')
             returning id
             """,
-            (agent_id, payload.proposedAction, Jsonb(payload.completedActions)),
+            (agent_id, agent_workspace_id, payload.proposedAction, Jsonb(payload.completedActions)),
         ).fetchone()
         if task_row is None:
             raise HTTPException(status_code=500, detail="Failed to create approval task.")
@@ -1004,15 +685,23 @@ def decide_inbox_item(
                 detail="Inbox item already decided.",
             )
 
+        # Fetch agent's workspace_id for the command insert
+        agent_workspace_row = connection.execute(
+            "select workspace_id from agents where id = %s::uuid",
+            (task_row["agent_id"],),
+        ).fetchone()
+        agent_workspace_id = agent_workspace_row["workspace_id"] if agent_workspace_row else None
+
         command_row = connection.execute(
             """
-            insert into commands (agent_id, source_task_id, kind, payload, status)
-            values (%s::uuid, %s::uuid, 'approval_decision', %s, 'pending')
+            insert into commands (agent_id, workspace_id, source_task_id, kind, payload, status)
+            values (%s::uuid, %s::uuid, %s::uuid, 'approval_decision', %s, 'pending')
             on conflict do nothing
             returning id
             """,
             (
                 task_row["agent_id"],
+                agent_workspace_id,
                 item_id,
                 Jsonb({"decision": payload.decision, "comment": payload.comment}),
             ),
