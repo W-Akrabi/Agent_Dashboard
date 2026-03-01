@@ -2,10 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { CheckCircle, XCircle, MessageSquare, Bot, Clock } from 'lucide-react';
 import { decideInboxItem, getInbox } from '@/lib/api';
 import type { InboxItem } from '@/types/index';
+import { useInvalidation } from '@/contexts/InvalidationContext';
 
 type FilterType = 'all' | 'pending' | 'approved' | 'rejected';
 
 export default function Inbox() {
+  const { subscribe } = useInvalidation();
   const [items, setItems] = useState<InboxItem[]>([]);
   const [filter, setFilter] = useState<FilterType>('all');
   const [comment, setComment] = useState('');
@@ -29,6 +31,10 @@ export default function Inbox() {
   useEffect(() => {
     loadInbox();
   }, []);
+
+  useEffect(() => {
+    return subscribe('tasks', loadInbox);
+  }, [subscribe]);
 
   const filteredItems = useMemo(
     () => items.filter((item) => (filter === 'all' ? true : item.status === filter)),

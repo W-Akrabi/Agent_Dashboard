@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   Bot,
@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import type { Agent, AgentEvent } from '@/types/index';
 import { getAgent, getAgentEvents, revokeAgentToken, updateAgentStatus } from '@/lib/api';
+import { useInvalidation } from '@/contexts/InvalidationContext';
 import {
   Dialog,
   DialogContent,
@@ -44,6 +45,7 @@ const eventTypeConfig = {
 export default function AgentDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { subscribe } = useInvalidation();
   const [agent, setAgent] = useState<Agent | undefined>(undefined);
   const [events, setEvents] = useState<AgentEvent[]>([]);
   const [copied, setCopied] = useState(false);
@@ -51,29 +53,37 @@ export default function AgentDetail() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadData = useCallback(async () => {
     if (!id) {
       setError('Missing agent id.');
       setIsLoading(false);
       return;
     }
-
-    const loadData = async () => {
-      try {
-        setError(null);
-        const [agentResponse, eventsResponse] = await Promise.all([getAgent(id), getAgentEvents(id)]);
-        setAgent(agentResponse);
-        setEvents(eventsResponse);
-      } catch (loadError) {
-        console.error(loadError);
-        setError(loadError instanceof Error ? loadError.message : 'Failed to load agent details.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadData();
+    try {
+      setError(null);
+      const [agentResponse, eventsResponse] = await Promise.all([getAgent(id), getAgentEvents(id)]);
+      setAgent(agentResponse);
+      setEvents(eventsResponse);
+    } catch (loadError) {
+      console.error(loadError);
+      setError(loadError instanceof Error ? loadError.message : 'Failed to load agent details.');
+    } finally {
+      setIsLoading(false);
+    }
   }, [id]);
+
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    const unsubEvents = subscribe('events', () => { void loadData(); });
+    const unsubAgents = subscribe('agents', () => { void loadData(); });
+    return () => {
+      unsubEvents();
+      unsubAgents();
+    };
+  }, [subscribe, loadData]);
 
   if (isLoading) {
     return (

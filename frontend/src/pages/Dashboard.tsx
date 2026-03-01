@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { getAgents, getEvents, getInbox, getSpend, updateAgentStatus } from '@/lib/api';
 import type { Agent, AgentEvent, SpendData } from '@/types/index';
+import { useInvalidation } from '@/contexts/InvalidationContext';
 
 const statusConfig = {
   running: { color: 'text-green-400', bg: 'bg-green-400/10', icon: Play, label: 'Running' },
@@ -38,6 +39,7 @@ const defaultSpendData: SpendData = {
 };
 
 export default function Dashboard() {
+  const { subscribe } = useInvalidation();
   const [agents, setAgents] = useState<Agent[]>([]);
   const [events, setEvents] = useState<AgentEvent[]>([]);
   const [spendData, setSpendData] = useState<SpendData>(defaultSpendData);
@@ -69,6 +71,17 @@ export default function Dashboard() {
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    const unsubEvents = subscribe('events', loadData);
+    const unsubAgents = subscribe('agents', loadData);
+    const unsubTasks = subscribe('tasks', loadData);
+    return () => {
+      unsubEvents();
+      unsubAgents();
+      unsubTasks();
+    };
+  }, [subscribe]);
 
   const activeAgents = useMemo(
     () => agents.filter((agent) => agent.status === 'running').length,

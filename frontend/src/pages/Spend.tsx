@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { DollarSign, TrendingUp, TrendingDown, AlertTriangle, Edit2, Check, X } from 'lucide-react';
 import type { SpendData } from '@/types/index';
 import { getSpend, updateBudget } from '@/lib/api';
+import { useInvalidation } from '@/contexts/InvalidationContext';
 
 const defaultSpendData: SpendData = {
   daily: 0,
@@ -11,6 +12,7 @@ const defaultSpendData: SpendData = {
 };
 
 export default function Spend() {
+  const { subscribe } = useInvalidation();
   const [spendData, setSpendData] = useState<SpendData>(defaultSpendData);
   const [editingBudget, setEditingBudget] = useState(false);
   const [newBudget, setNewBudget] = useState(defaultSpendData.budget.toString());
@@ -34,6 +36,10 @@ export default function Spend() {
   useEffect(() => {
     loadSpend();
   }, []);
+
+  useEffect(() => {
+    return subscribe('events', loadSpend);
+  }, [subscribe]);
 
   const budgetPercent = spendData.budget > 0 ? (spendData.monthly / spendData.budget) * 100 : 0;
   const remaining = spendData.budget - spendData.monthly;

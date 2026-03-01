@@ -12,6 +12,7 @@ import AgentDetail from './pages/AgentDetail';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
+import { InvalidationProvider } from './contexts/InvalidationContext';
 import { Workshop } from './views/Workshop';
 import { Momentum } from './views/Momentum';
 import { Scheduler } from './views/Scheduler';
@@ -48,6 +49,7 @@ export default function App() {
 
   return (
     <AuthProvider>
+      <InvalidationProvider>
       <Router>
         <Routes>
           <Route path="/" element={<LandingPage />} />
@@ -74,6 +76,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/auth" replace />} />
         </Routes>
       </Router>
+      </InvalidationProvider>
     </AuthProvider>
   );
 }

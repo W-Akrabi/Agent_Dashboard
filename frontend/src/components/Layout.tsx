@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { getInbox } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { useInvalidation } from '@/contexts/InvalidationContext';
 import { supabase } from '@/lib/supabase';
 
 const sidebarItems = [
@@ -44,6 +45,7 @@ const sidebarItems = [
 export default function Layout() {
   const location = useLocation();
   const { user } = useAuth();
+  const { subscribe, isConnected } = useInvalidation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
   const [scrolled, setScrolled] = useState(false);
@@ -56,30 +58,19 @@ export default function Layout() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  const loadPendingCount = async () => {
+    try {
+      const pendingItems = await getInbox('pending');
+      setPendingCount(pendingItems.length);
+    } catch (error) {
+      console.error('Failed to load pending approvals:', error);
+    }
+  };
+
   useEffect(() => {
-    let cancelled = false;
-
-    const loadPendingCount = async () => {
-      try {
-        const pendingItems = await getInbox('pending');
-        if (!cancelled) {
-          setPendingCount(pendingItems.length);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          console.error('Failed to load pending approvals:', error);
-        }
-      }
-    };
-
-    loadPendingCount();
-    const intervalId = window.setInterval(loadPendingCount, 15000);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(intervalId);
-    };
-  }, []);
+    void loadPendingCount();
+    return subscribe('tasks', () => { void loadPendingCount(); });
+  }, [subscribe]);
 
   const email = user?.email ?? '';
   const localPart = email.split('@')[0];
@@ -187,7 +178,18 @@ export default function Layout() {
             </div>
 
             <div className="flex items-center gap-4">
-              <Link 
+              {isConnected ? (
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-green-500" style={{ boxShadow: '0 0 6px #22c55e' }} />
+                  <span className="text-xs font-medium text-green-400 tracking-wider">LIVE</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-red-500" style={{ boxShadow: '0 0 6px #ef4444' }} />
+                  <span className="text-xs font-medium text-red-400 tracking-wider">RECONNECTING</span>
+                </div>
+              )}
+              <Link
                 to="/inbox"
                 className="relative p-2 text-[#A7ACBF] hover:text-white transition-colors"
               >
@@ -206,6 +208,13 @@ export default function Layout() {
             </div>
           </div>
         </header>
+
+        {!isConnected && (
+          <div className="bg-red-500/10 border-b border-red-500/20 px-6 py-2 text-sm text-red-300 flex items-center gap-2">
+            <span>⚠️</span>
+            <span>Live updates paused — reconnecting…</span>
+          </div>
+        )}
 
         {/* Page Content */}
         <div className="p-6">
