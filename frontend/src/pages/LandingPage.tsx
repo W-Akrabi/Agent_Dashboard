@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { forwardRef, useRef as useRefBeam } from 'react';
 import { AnimatedBeam } from '@/registry/magicui/animated-beam';
+import DisplayCards from '@/components/ui/display-cards';
 import { cn } from '@/lib/utils';
 
 const BeamCircle = forwardRef<HTMLDivElement, { className?: string; children?: React.ReactNode }>(
@@ -410,37 +411,35 @@ export default function LandingPage() {
               </Link>
             </div>
 
-            <div className="animate-in">
-              <div className="data-card p-6 space-y-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                  <span className="text-xs text-[#A7ACBF] font-mono uppercase tracking-widest">Live</span>
-                </div>
-                {[
-                  { agent: 'writer-agent', type: 'tool_call', action: 'Called `read_file` on /output/draft.md', cost: 0.01, time: 'just now', active: true },
-                  { agent: 'research-agent', type: 'completion', action: 'Finished summarising 14 research papers', cost: 0.08, time: '1m ago' },
-                  { agent: 'ops-agent', type: 'approval_request', action: 'Requesting approval to send email to 312 recipients', cost: 0.00, time: '3m ago' },
-                ].map((item, i) => (
-                  <div
-                    key={i}
-                    className={`p-4 rounded-lg border transition-all ${
-                      item.active
-                        ? 'border-[#4F46E5]/50 bg-[#4F46E5]/10'
-                        : 'border-white/5 bg-white/[0.02]'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-medium text-sm font-mono">{item.agent}</span>
-                      <span className="text-xs text-[#A7ACBF]">{item.time}</span>
-                    </div>
-                    <p className="text-sm text-[#A7ACBF] mb-2">{item.action}</p>
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs font-mono text-[#4F46E5]">${item.cost.toFixed(2)}</span>
-                      <span className="text-xs text-[#A7ACBF]/60 font-mono">{item.type}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <div className="animate-in flex justify-center items-center min-h-[260px]">
+              <DisplayCards
+                cards={[
+                  {
+                    icon: <Terminal className="w-4 h-4" />,
+                    title: 'tool_call',
+                    description: 'code-agent — write_file /src/auth.ts',
+                    date: '8 min ago',
+                    iconClassName: 'text-[#4F46E5]',
+                    titleClassName: 'text-[#4F46E5]',
+                  },
+                  {
+                    icon: <CheckCircle className="w-4 h-4" />,
+                    title: 'completion',
+                    description: 'research-agent finished analysis',
+                    date: '3 min ago',
+                    iconClassName: 'text-green-400',
+                    titleClassName: 'text-green-400',
+                  },
+                  {
+                    icon: <Inbox className="w-4 h-4" />,
+                    title: 'approval_request',
+                    description: 'ops-agent — deploy to production',
+                    date: 'Just now',
+                    iconClassName: 'text-orange-400',
+                    titleClassName: 'text-orange-400',
+                  },
+                ]}
+              />
             </div>
           </div>
         </div>
