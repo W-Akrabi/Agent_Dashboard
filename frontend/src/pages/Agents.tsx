@@ -9,9 +9,8 @@ import {
   Clock,
   Inbox,
   Search,
-  Copy,
-  Check,
 } from 'lucide-react';
+import { CopiedIcon } from '@/components/ui/animated-state-icons';
 import type { Agent } from '@/types/index';
 import { createAgent, getAgents, updateAgentStatus } from '@/lib/api';
 import {
@@ -157,7 +156,7 @@ export default function Agents() {
                     onClick={copyToken}
                     className="p-3 bg-[#4F46E5] rounded-lg hover:bg-[#4338CA] transition-colors"
                   >
-                    {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
+                    <CopiedIcon size={20} color="white" />
                   </button>
                 </div>
                 <button onClick={resetModal} className="w-full btn-primary">

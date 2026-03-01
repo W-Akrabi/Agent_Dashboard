@@ -10,11 +10,10 @@ import {
   ArrowLeft,
   Trash2,
   RefreshCw,
-  Copy,
-  Check,
   DollarSign,
   Activity,
 } from 'lucide-react';
+import { CopiedIcon, LockUnlockIcon } from '@/components/ui/animated-state-icons';
 import type { Agent, AgentEvent } from '@/types/index';
 import { getAgent, getAgentEvents, revokeAgentToken, updateAgentStatus } from '@/lib/api';
 import { useInvalidation } from '@/contexts/InvalidationContext';
@@ -267,9 +266,12 @@ export default function AgentDetail() {
 
       <div className="data-card p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold">Agent Token</h3>
-          <button onClick={copyToken} className="flex items-center gap-2 text-sm text-[#4F46E5] hover:underline">
-            {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+          <div className="flex items-center gap-2">
+            <LockUnlockIcon size={20} color="#4F46E5" />
+            <h3 className="font-semibold">Agent Token</h3>
+          </div>
+          <button onClick={copyToken} className="flex items-center gap-1 text-sm text-[#4F46E5] hover:underline">
+            <CopiedIcon size={16} color="#4F46E5" />
             {copied ? 'Copied!' : 'Copy'}
           </button>
         </div>

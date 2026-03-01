@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CheckCircle, XCircle, MessageSquare, Bot, Clock } from 'lucide-react';
+import { SuccessIcon } from '@/components/ui/animated-state-icons';
 import { decideInboxItem, getInbox } from '@/lib/api';
 import type { InboxItem } from '@/types/index';
 import { useInvalidation } from '@/contexts/InvalidationContext';
@@ -106,8 +107,8 @@ export default function Inbox() {
       <div className="space-y-4">
         {filteredItems.length === 0 ? (
           <div className="data-card p-12 text-center">
-            <div className="w-16 h-16 rounded-full bg-[#4F46E5]/20 flex items-center justify-center mx-auto mb-4">
-              <CheckCircle className="w-8 h-8 text-[#4F46E5]" />
+            <div className="flex items-center justify-center mx-auto mb-4">
+              <SuccessIcon size={64} color="#4F46E5" />
             </div>
             <h3 className="text-lg font-medium mb-2">All caught up!</h3>
             <p className="text-[#A7ACBF]">No {filter !== 'all' ? filter : ''} approvals to review.</p>

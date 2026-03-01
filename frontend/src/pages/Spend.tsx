@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { DollarSign, TrendingUp, TrendingDown, AlertTriangle, Edit2, Check, X } from 'lucide-react';
+import { NotificationIcon } from '@/components/ui/animated-state-icons';
 import type { SpendData } from '@/types/index';
 import { getSpend, updateBudget } from '@/lib/api';
 import { useInvalidation } from '@/contexts/InvalidationContext';
@@ -95,7 +96,7 @@ export default function Spend() {
 
       {budgetPercent >= 80 && (
         <div className={`p-4 rounded-lg ${alert.bg} border ${alert.border} flex items-center gap-3`}>
-          <AlertIcon className={`w-5 h-5 ${alert.color}`} />
+          <NotificationIcon size={24} color={budgetPercent >= 100 ? '#F87171' : '#FB923C'} />
           <div>
             <p className={`font-medium ${alert.color}`}>{budgetPercent >= 100 ? 'Budget Exceeded' : 'Budget Warning'}</p>
             <p className="text-sm text-[#A7ACBF]">
