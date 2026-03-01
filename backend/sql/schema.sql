@@ -1,197 +1,306 @@
--- Jarvis Mission Control schema for Supabase Postgres
--- Apply in Supabase SQL Editor before running the backend.
+-- Jarvis Mission Control — Supabase schema
+-- Run once in the Supabase SQL Editor on a fresh project.
+-- Idempotent: safe to re-run (uses CREATE TABLE IF NOT EXISTS, CREATE INDEX IF NOT EXISTS, etc.)
 
-create extension if not exists pgcrypto;
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
-create table if not exists users (
-  id uuid primary key default gen_random_uuid(),
-  email text not null unique,
-  workspace_id uuid not null default gen_random_uuid(),
-  api_token_hash text unique,
-  api_token_issued_at timestamptz,
-  api_token_last_rotated_at timestamptz,
-  api_token_revoked_at timestamptz,
-  api_token_last_used_at timestamptz,
-  monthly_budget numeric(12,2) not null default 1000,
-  created_at timestamptz not null default now(),
-  password_hash text
+-- ============================================================================
+-- public.users
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS public.users (
+  id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email text NOT NULL UNIQUE,
+  workspace_id uuid NOT NULL DEFAULT gen_random_uuid(),
+  monthly_budget numeric(12,2) NOT NULL DEFAULT 1000,
+  created_at timestamptz NOT NULL DEFAULT now()
 );
 
-alter table users add column if not exists id uuid;
-update users
-set id = gen_random_uuid()
-where id is null;
-alter table users alter column id set default gen_random_uuid();
-alter table users alter column id set not null;
-create unique index if not exists idx_users_id_unique
-  on users(id);
+-- ============================================================================
+-- handle_new_user function and trigger
+-- ============================================================================
 
-alter table users add column if not exists workspace_id uuid;
-alter table users alter column workspace_id set default gen_random_uuid();
-update users
-set workspace_id = gen_random_uuid()
-where workspace_id is null;
-alter table users alter column workspace_id set not null;
-alter table users add column if not exists created_at timestamptz;
-update users
-set created_at = now()
-where created_at is null;
-alter table users alter column created_at set default now();
-alter table users alter column created_at set not null;
-alter table users add column if not exists api_token_hash text;
-alter table users add column if not exists api_token_issued_at timestamptz;
-alter table users add column if not exists api_token_last_rotated_at timestamptz;
-alter table users add column if not exists api_token_revoked_at timestamptz;
-alter table users add column if not exists api_token_last_used_at timestamptz;
-alter table users add column if not exists password_hash text;
-update users
-set api_token_issued_at = coalesce(api_token_issued_at, created_at)
-where api_token_hash is not null
-  and api_token_issued_at is null;
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO public.users(id, email) VALUES (NEW.id, NEW.email);
+  RETURN NEW;
+END $$;
 
-create table if not exists agents (
-  id uuid primary key default gen_random_uuid(),
-  owner_user_id uuid references users(id) on delete set null,
-  workspace_id uuid not null,
-  name text not null,
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.handle_new_user();
+
+-- ============================================================================
+-- agents
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS agents (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  owner_user_id uuid REFERENCES public.users(id) ON DELETE SET NULL,
+  workspace_id uuid NOT NULL,
+  name text NOT NULL,
   description text,
-  status text not null default 'idle'
-    check (status in ('running', 'idle', 'paused', 'error', 'waiting_approval')),
-  created_at timestamptz not null default now(),
-  last_seen_at timestamptz not null default now()
+  status text NOT NULL DEFAULT 'idle'
+    CHECK (status IN ('running', 'idle', 'paused', 'error', 'waiting_approval')),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  last_seen_at timestamptz NOT NULL DEFAULT now()
 );
 
-alter table agents add column if not exists id uuid;
-update agents
-set id = gen_random_uuid()
-where id is null;
-alter table agents alter column id set default gen_random_uuid();
-alter table agents alter column id set not null;
-create unique index if not exists idx_agents_id_unique
-  on agents(id);
+CREATE INDEX IF NOT EXISTS idx_agents_workspace_created_at
+  ON agents(workspace_id, created_at DESC);
 
-alter table agents add column if not exists owner_user_id uuid references users(id) on delete set null;
-alter table agents add column if not exists workspace_id uuid;
-alter table agents add column if not exists description text;
-alter table agents add column if not exists status text;
-update agents
-set status = 'idle'
-where status is null;
-alter table agents alter column status set default 'idle';
-alter table agents alter column status set not null;
-alter table agents add column if not exists created_at timestamptz;
-update agents
-set created_at = now()
-where created_at is null;
-alter table agents alter column created_at set default now();
-alter table agents alter column created_at set not null;
-alter table agents add column if not exists last_seen_at timestamptz;
-update agents
-set last_seen_at = coalesce(last_seen_at, created_at, now())
-where last_seen_at is null;
-alter table agents alter column last_seen_at set default now();
-alter table agents alter column last_seen_at set not null;
-update agents
-set workspace_id = (
-  select coalesce(
-    (
-      select u.workspace_id
-      from users u
-      order by u.created_at asc
-      limit 1
-    ),
-    gen_random_uuid()
-  )
-)
-where workspace_id is null;
-alter table agents alter column workspace_id set not null;
+CREATE INDEX IF NOT EXISTS idx_agents_owner_user
+  ON agents(owner_user_id);
 
-create index if not exists idx_agents_workspace_created_at
-  on agents(workspace_id, created_at desc);
+-- ============================================================================
+-- agent_tokens
+-- ============================================================================
 
-create index if not exists idx_agents_owner_user
-  on agents(owner_user_id);
-
-create table if not exists agent_tokens (
-  id uuid primary key default gen_random_uuid(),
-  agent_id uuid not null references agents(id) on delete cascade,
-  token_hash text not null,
-  created_at timestamptz not null default now(),
+CREATE TABLE IF NOT EXISTS agent_tokens (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  agent_id uuid NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+  token_hash text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
   revoked_at timestamptz
 );
 
-create unique index if not exists idx_agent_tokens_one_active
-  on agent_tokens(agent_id)
-  where revoked_at is null;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_agent_tokens_one_active
+  ON agent_tokens(agent_id)
+  WHERE revoked_at IS NULL;
 
-create index if not exists idx_agent_tokens_hash_active
-  on agent_tokens(token_hash)
-  where revoked_at is null;
+CREATE INDEX IF NOT EXISTS idx_agent_tokens_hash_active
+  ON agent_tokens(token_hash)
+  WHERE revoked_at IS NULL;
 
-create table if not exists events (
-  id uuid primary key default gen_random_uuid(),
-  agent_id uuid not null references agents(id) on delete cascade,
-  type text not null check (type in ('action', 'completion', 'error', 'tool_call', 'approval_request')),
-  message text not null,
-  cost numeric(12,6) not null default 0,
-  requires_approval boolean not null default false,
+-- ============================================================================
+-- events
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS events (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  agent_id uuid NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+  type text NOT NULL CHECK (type IN ('action', 'completion', 'error', 'tool_call', 'approval_request')),
+  message text NOT NULL,
+  cost numeric(12,6) NOT NULL DEFAULT 0,
+  requires_approval boolean NOT NULL DEFAULT false,
   proposed_action text,
-  completed_actions jsonb not null default '[]'::jsonb,
-  created_at timestamptz not null default now()
+  completed_actions jsonb NOT NULL DEFAULT '[]'::jsonb,
+  created_at timestamptz NOT NULL DEFAULT now()
 );
 
-create index if not exists idx_events_agent_created_at
-  on events(agent_id, created_at desc);
+-- Migration: Add workspace_id (nullable first, then backfill, then NOT NULL)
+ALTER TABLE events ADD COLUMN IF NOT EXISTS workspace_id uuid;
 
-create index if not exists idx_events_created_at
-  on events(created_at desc);
+-- Backfill workspace_id from agents for existing rows
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM events WHERE workspace_id IS NULL LIMIT 1) THEN
+    UPDATE events
+    SET workspace_id = (SELECT workspace_id FROM agents WHERE id = agent_id)
+    WHERE workspace_id IS NULL;
+  END IF;
+END $$;
 
-create table if not exists tasks (
-  id uuid primary key default gen_random_uuid(),
-  agent_id uuid not null references agents(id) on delete cascade,
-  proposed_action text not null,
-  completed_actions jsonb not null default '[]'::jsonb,
-  status text not null default 'pending'
-    check (status in ('pending', 'approved', 'rejected')),
+-- Apply NOT NULL constraint after backfill
+ALTER TABLE events ALTER COLUMN workspace_id SET NOT NULL;
+
+-- Create indexes after column is guaranteed to exist and be populated
+CREATE INDEX IF NOT EXISTS idx_events_agent_created_at
+  ON events(agent_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_events_created_at
+  ON events(created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_events_workspace_created_at
+  ON events(workspace_id, created_at DESC);
+
+-- ============================================================================
+-- tasks
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS tasks (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  agent_id uuid NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+  proposed_action text NOT NULL,
+  completed_actions jsonb NOT NULL DEFAULT '[]'::jsonb,
+  status text NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending', 'approved', 'rejected')),
   comment text,
-  created_at timestamptz not null default now(),
+  created_at timestamptz NOT NULL DEFAULT now(),
   decided_at timestamptz
 );
 
-alter table tasks add column if not exists id uuid;
-update tasks
-set id = gen_random_uuid()
-where id is null;
-alter table tasks alter column id set default gen_random_uuid();
-alter table tasks alter column id set not null;
-create unique index if not exists idx_tasks_id_unique
-  on tasks(id);
+-- Migration: Add workspace_id (nullable first, then backfill, then NOT NULL)
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS workspace_id uuid;
 
-create index if not exists idx_tasks_status_created_at
-  on tasks(status, created_at desc);
+-- Backfill workspace_id from agents for existing rows
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM tasks WHERE workspace_id IS NULL LIMIT 1) THEN
+    UPDATE tasks
+    SET workspace_id = (SELECT workspace_id FROM agents WHERE id = agent_id)
+    WHERE workspace_id IS NULL;
+  END IF;
+END $$;
 
-create index if not exists idx_tasks_agent_status
-  on tasks(agent_id, status);
+-- Apply NOT NULL constraint after backfill
+ALTER TABLE tasks ALTER COLUMN workspace_id SET NOT NULL;
 
-create table if not exists commands (
-  id uuid primary key default gen_random_uuid(),
-  agent_id uuid not null references agents(id) on delete cascade,
-  source_task_id uuid references tasks(id) on delete set null,
-  kind text not null default 'approval_decision',
-  payload jsonb not null default '{}'::jsonb,
-  status text not null default 'pending'
-    check (status in ('pending', 'acked', 'expired')),
-  created_at timestamptz not null default now(),
+-- Create indexes after column is guaranteed to exist and be populated
+CREATE INDEX IF NOT EXISTS idx_tasks_status_created_at
+  ON tasks(status, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_tasks_agent_status
+  ON tasks(agent_id, status);
+
+CREATE INDEX IF NOT EXISTS idx_tasks_workspace_status_created_at
+  ON tasks(workspace_id, status, created_at DESC);
+
+-- ============================================================================
+-- commands
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS commands (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  agent_id uuid NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+  source_task_id uuid REFERENCES tasks(id) ON DELETE SET NULL,
+  kind text NOT NULL DEFAULT 'approval_decision',
+  payload jsonb NOT NULL DEFAULT '{}'::jsonb,
+  status text NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending', 'acked', 'expired')),
+  created_at timestamptz NOT NULL DEFAULT now(),
   acked_at timestamptz
 );
 
-create index if not exists idx_commands_agent_status_created
-  on commands(agent_id, status, created_at asc);
+-- Migration: Add workspace_id (nullable first, then backfill, then NOT NULL)
+ALTER TABLE commands ADD COLUMN IF NOT EXISTS workspace_id uuid;
 
-create unique index if not exists idx_commands_one_decision_per_source_task
-  on commands(source_task_id)
-  where source_task_id is not null and kind = 'approval_decision';
+-- Backfill workspace_id from agents for existing rows
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM commands WHERE workspace_id IS NULL LIMIT 1) THEN
+    UPDATE commands
+    SET workspace_id = (SELECT workspace_id FROM agents WHERE id = agent_id)
+    WHERE workspace_id IS NULL;
+  END IF;
+END $$;
 
-insert into users (email, monthly_budget)
-values ('owner@jarvis.local', 1000)
-on conflict (email) do nothing;
+-- Apply NOT NULL constraint after backfill
+ALTER TABLE commands ALTER COLUMN workspace_id SET NOT NULL;
+
+-- Create indexes after column is guaranteed to exist and be populated
+CREATE INDEX IF NOT EXISTS idx_commands_agent_status_created
+  ON commands(agent_id, status, created_at ASC);
+
+CREATE INDEX IF NOT EXISTS idx_commands_workspace_status_created
+  ON commands(workspace_id, status, created_at ASC);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_commands_one_decision_per_source_task
+  ON commands(source_task_id)
+  WHERE source_task_id IS NOT NULL AND kind = 'approval_decision';
+
+-- ============================================================================
+-- Triggers: Auto-populate workspace_id from agents (backward compatibility)
+-- ============================================================================
+
+-- Trigger for events: populate workspace_id from agents.workspace_id when omitted
+CREATE OR REPLACE FUNCTION public.events_populate_workspace_id()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW.workspace_id IS NULL THEN
+    SELECT workspace_id INTO NEW.workspace_id FROM agents WHERE id = NEW.agent_id;
+  END IF;
+  RETURN NEW;
+END $$;
+
+DROP TRIGGER IF EXISTS events_populate_workspace_id ON events;
+CREATE TRIGGER events_populate_workspace_id
+  BEFORE INSERT ON events
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.events_populate_workspace_id();
+
+-- Trigger for tasks: populate workspace_id from agents.workspace_id when omitted
+CREATE OR REPLACE FUNCTION public.tasks_populate_workspace_id()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW.workspace_id IS NULL THEN
+    SELECT workspace_id INTO NEW.workspace_id FROM agents WHERE id = NEW.agent_id;
+  END IF;
+  RETURN NEW;
+END $$;
+
+DROP TRIGGER IF EXISTS tasks_populate_workspace_id ON tasks;
+CREATE TRIGGER tasks_populate_workspace_id
+  BEFORE INSERT ON tasks
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.tasks_populate_workspace_id();
+
+-- Trigger for commands: populate workspace_id from agents.workspace_id when omitted
+CREATE OR REPLACE FUNCTION public.commands_populate_workspace_id()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW.workspace_id IS NULL THEN
+    SELECT workspace_id INTO NEW.workspace_id FROM agents WHERE id = NEW.agent_id;
+  END IF;
+  RETURN NEW;
+END $$;
+
+DROP TRIGGER IF EXISTS commands_populate_workspace_id ON commands;
+CREATE TRIGGER commands_populate_workspace_id
+  BEFORE INSERT ON commands
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.commands_populate_workspace_id();
+
+-- ============================================================================
+-- Realtime configuration
+-- ============================================================================
+
+ALTER TABLE events REPLICA IDENTITY FULL;
+ALTER TABLE tasks  REPLICA IDENTITY FULL;
+ALTER TABLE agents REPLICA IDENTITY FULL;
+
+-- ============================================================================
+-- Row Level Security (RLS)
+-- ============================================================================
+
+ALTER TABLE agents   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE events   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tasks    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE commands ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "workspace_select" ON agents;
+CREATE POLICY "workspace_select" ON agents
+  FOR SELECT USING (
+    workspace_id = (SELECT workspace_id FROM public.users WHERE id = auth.uid())
+  );
+
+DROP POLICY IF EXISTS "workspace_select" ON events;
+CREATE POLICY "workspace_select" ON events
+  FOR SELECT USING (
+    workspace_id = (SELECT workspace_id FROM public.users WHERE id = auth.uid())
+  );
+
+DROP POLICY IF EXISTS "workspace_select" ON tasks;
+CREATE POLICY "workspace_select" ON tasks
+  FOR SELECT USING (
+    workspace_id = (SELECT workspace_id FROM public.users WHERE id = auth.uid())
+  );
+
+DROP POLICY IF EXISTS "workspace_select" ON commands;
+CREATE POLICY "workspace_select" ON commands
+  FOR SELECT USING (
+    workspace_id = (SELECT workspace_id FROM public.users WHERE id = auth.uid())
+  );

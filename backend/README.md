@@ -1,75 +1,59 @@
 # Jarvis Backend (FastAPI + Supabase)
 
-## 1) Configure environment
+## Setup
 
-```bash
-cd backend
-cp .env.example .env
-```
+Follow these steps to get the backend running:
 
-Set either `DATABASE_URL` or the `SUPABASE_DB_*` fields in `.env`.
-Set `CONTROL_PLANE_TOKEN` to a strong random server-side secret.
-This value must be unique per environment and never committed as a real secret.
-It is used to bootstrap the first user bearer token only when no user token exists.
-Do not expose it to browser clients.
+1. **Create a Supabase project** at [supabase.com](https://supabase.com)
 
-Optional DB pool tuning:
-- `DB_POOL_MIN_SIZE`
-- `DB_POOL_MAX_SIZE`
-- `DB_POOL_TIMEOUT_SECONDS`
-- `DB_POOL_MAX_IDLE_SECONDS`
+2. **Run the database schema** — Open the Supabase SQL Editor and execute all SQL from `backend/sql/schema.sql`
 
-## 2) Apply schema in Supabase
+3. **Enable Realtime** on the following tables:
+   - Go to Supabase Dashboard → Table Editor
+   - Select each table (`events`, `tasks`, `agents`)
+   - Toggle the "Realtime" switch ON
 
-Run the SQL in `sql/schema.sql` inside Supabase SQL Editor.
+4. **Copy `.env.example` and fill in values**:
+   ```bash
+   cd backend
+   cp .env.example .env
+   ```
+   Then open `.env` and fill in the values from your Supabase Dashboard:
+   - `SUPABASE_DB_HOST`, `SUPABASE_DB_PASSWORD` — Supabase Dashboard → Settings → Database
+   - `SUPABASE_JWT_SECRET` — Supabase Dashboard → Settings → API
+   - `CONTROL_PLANE_TOKEN` — Generate a strong random secret (for server-side privileged operations)
 
-## 3) Install and run
+5. **Set up frontend `.env`**:
+   ```bash
+   cd frontend
+   cp .env.example .env
+   ```
+   Fill in values from Supabase Dashboard → Settings → API:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
 
-```bash
-cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-```
+6. **Install and start the backend**:
+   ```bash
+   cd backend
+   pip install -r requirements.txt
+   uvicorn app.main:app --reload
+   ```
+   The API will be available at `http://localhost:8000`
 
-API docs:
-- Swagger UI: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc`
+7. **Start the frontend** (in a new terminal):
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
+   The app will be available at `http://localhost:5173`
 
-Auth model:
-- Dashboard/control-plane endpoints use `Authorization: Bearer <user_token>`.
-- Agent runtime endpoints continue to use `X-Agent-Token`.
-- `X-Control-Plane-Token` should be reserved for trusted server-side machine-to-machine use only.
+8. **Sign up via the app** — When you create an account, a user profile is automatically created in the database via the `handle_new_user` trigger.
 
-User token lifecycle endpoints:
-- `POST /v1/user-token/issue` (`X-Control-Plane-Token` required) issues a new user token.
-- `POST /v1/user-token/rotate` (`Authorization: Bearer <user_token>`) rotates the caller token.
-- `POST /v1/user-token/revoke` (`Authorization: Bearer <user_token>`) revokes the caller token.
+---
 
-## Operator runbook: user token rotation
+## API Documentation
 
-1. Initial issue (or break-glass re-issue) from a trusted server environment:
-
-```bash
-curl -sS -X POST http://localhost:8000/v1/user-token/issue \
-  -H "X-Control-Plane-Token: $CONTROL_PLANE_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{}'
-```
-
-2. Rotate an active user token:
-
-```bash
-curl -sS -X POST http://localhost:8000/v1/user-token/rotate \
-  -H "Authorization: Bearer $CURRENT_USER_TOKEN"
-```
-
-3. Revoke an active user token:
-
-```bash
-curl -i -X POST http://localhost:8000/v1/user-token/revoke \
-  -H "Authorization: Bearer $CURRENT_USER_TOKEN"
-```
-
-After `issue` or `rotate`, store the returned `userToken` securely and update frontend/browser token storage.
+Once the backend is running, visit:
+- **Swagger UI**: `http://localhost:8000/docs`
+- **ReDoc**: `http://localhost:8000/redoc`
