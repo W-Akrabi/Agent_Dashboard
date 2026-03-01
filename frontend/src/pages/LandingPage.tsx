@@ -198,9 +198,17 @@ export default function LandingPage() {
           fill="#4F46E5"
         />
 
-        <div className="flex h-full pt-16">
-          {/* Left — text content */}
-          <div className="flex-1 flex flex-col justify-center px-8 md:px-16 relative z-10">
+        {/* Spline 3D scene — full background */}
+        <div className="absolute inset-0">
+          <SplineScene
+            scene="https://prod.spline.design/kZDDjO5HuC9GJUM2/scene.splinecode"
+            className="w-full h-full"
+          />
+        </div>
+
+        {/* Text overlay */}
+        <div className="relative z-10 flex h-full pt-16 pointer-events-none">
+          <div className="flex flex-col justify-center px-8 md:px-16 max-w-2xl">
             <div className="hero-badge inline-block mb-6">
               <span className="eyebrow text-[#4F46E5] border-b border-[#4F46E5] pb-1">
                 PRIVATE BETA
@@ -218,7 +226,7 @@ export default function LandingPage() {
               and keep costs predictable.
             </p>
 
-            <div className="hero-ctas flex flex-col sm:flex-row gap-4">
+            <div className="hero-ctas flex flex-col sm:flex-row gap-4 pointer-events-auto">
               <Link to="/auth" className="btn-primary w-full sm:w-auto">
                 Request Access
               </Link>
@@ -226,14 +234,6 @@ export default function LandingPage() {
                 View Docs
               </a>
             </div>
-          </div>
-
-          {/* Right — Spline 3D scene */}
-          <div className="flex-1 relative">
-            <SplineScene
-              scene="https://prod.spline.design/kZDDjO5HuC9GJUM2/scene.splinecode"
-              className="w-full h-full"
-            />
           </div>
         </div>
       </section>
