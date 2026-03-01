@@ -15,7 +15,6 @@ import {
   Bot,
   Lock,
   Code,
-  FileSearch,
   Settings
 } from 'lucide-react';
 
@@ -222,8 +221,8 @@ export default function LandingPage() {
             </h1>
 
             <p className="hero-subtitle text-lg text-[#A7ACBF] max-w-md mb-10">
-              Jarvis is the oversight layer for AI agents. See every action, approve what matters,
-              and keep costs predictable.
+              Register your agents, stream every event in real time, gate sensitive actions
+              behind human approval, and track spend down to the cent — all in one place.
             </p>
 
             <div className="hero-ctas flex flex-col sm:flex-row gap-4 pointer-events-auto">
@@ -263,17 +262,18 @@ export default function LandingPage() {
             <div className="animate-in">
               <span className="eyebrow text-[#4F46E5] mb-4 block">Live Activity</span>
               <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6">
-                See everything your agents are doing.
+                Every action. Every cost. In real time.
               </h2>
               <p className="text-[#A7ACBF] text-lg mb-8">
-                Events stream in as they happen: tool calls, completions, errors, and cost per step. 
-                No more digging through logs.
+                Agents push events as they run — tool calls, completions, errors, and approval requests —
+                each tagged with a dollar cost. The live feed shows the 50 most recent events across
+                all your agents the moment they happen.
               </p>
               <ul className="space-y-4 mb-8">
                 {[
-                  'Real-time event stream',
-                  'Per-step cost attribution',
-                  'Filter by agent, type, or time',
+                  'Five event types: action, tool_call, completion, error, approval_request',
+                  'Per-event cost in dollars, aggregated daily and monthly',
+                  'Agent last_seen_at updated on every event; status set to waiting_approval on approval requests',
                 ].map((item, i) => (
                   <li key={i} className="flex items-center gap-3">
                     <CheckCircle className="w-5 h-5 text-[#4F46E5]" />
@@ -282,31 +282,38 @@ export default function LandingPage() {
                 ))}
               </ul>
               <Link to="/auth" className="inline-flex items-center gap-2 text-[#4F46E5] hover:gap-3 transition-all">
-                Explore the feed <ArrowRight className="w-4 h-4" />
+                See the live feed <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
 
             <div className="animate-in">
               <div className="data-card p-6 space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                  <span className="text-xs text-[#A7ACBF] font-mono uppercase tracking-widest">Live</span>
+                </div>
                 {[
-                  { agent: 'Research Assistant', action: 'Searched web for "AI orchestration"', cost: 0.02, time: '2m ago' },
-                  { agent: 'Data Processor', action: 'Validated data schema', cost: 0.04, time: '5m ago', active: true },
-                  { agent: 'Code Reviewer', action: 'Analyzed PR #234', cost: 0.03, time: '8m ago' },
+                  { agent: 'writer-agent', type: 'tool_call', action: 'Called `read_file` on /output/draft.md', cost: 0.01, time: 'just now', active: true },
+                  { agent: 'research-agent', type: 'completion', action: 'Finished summarising 14 research papers', cost: 0.08, time: '1m ago' },
+                  { agent: 'ops-agent', type: 'approval_request', action: 'Requesting approval to send email to 312 recipients', cost: 0.00, time: '3m ago' },
                 ].map((item, i) => (
-                  <div 
-                    key={i} 
+                  <div
+                    key={i}
                     className={`p-4 rounded-lg border transition-all ${
-                      item.active 
-                        ? 'border-[#4F46E5]/50 bg-[#4F46E5]/10' 
+                      item.active
+                        ? 'border-[#4F46E5]/50 bg-[#4F46E5]/10'
                         : 'border-white/5 bg-white/[0.02]'
                     }`}
                   >
                     <div className="flex items-center justify-between mb-2">
-                      <span className="font-medium text-sm">{item.agent}</span>
+                      <span className="font-medium text-sm font-mono">{item.agent}</span>
                       <span className="text-xs text-[#A7ACBF]">{item.time}</span>
                     </div>
                     <p className="text-sm text-[#A7ACBF] mb-2">{item.action}</p>
-                    <span className="text-xs font-mono text-[#4F46E5]">${item.cost.toFixed(2)}</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-mono text-[#4F46E5]">${item.cost.toFixed(2)}</span>
+                      <span className="text-xs text-[#A7ACBF]/60 font-mono">{item.type}</span>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -326,24 +333,27 @@ export default function LandingPage() {
                     <Bot className="w-5 h-5 text-[#4F46E5]" />
                   </div>
                   <div>
-                    <p className="font-medium">Data Processor</p>
-                    <p className="text-xs text-[#A7ACBF]">Requesting approval</p>
+                    <p className="font-medium font-mono">ops-agent</p>
+                    <p className="text-xs text-[#A7ACBF]">waiting_approval</p>
                   </div>
                 </div>
-                
-                <div className="space-y-3 mb-6">
+
+                <p className="text-xs text-[#A7ACBF] uppercase tracking-widest mb-3">Completed</p>
+                <div className="space-y-3 mb-4">
                   <div className="flex items-start gap-2">
-                    <CheckCircle className="w-4 h-4 text-green-500 mt-0.5" />
-                    <span className="text-sm text-[#A7ACBF]">Validated data schema</span>
+                    <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
+                    <span className="text-sm text-[#A7ACBF]">Fetched 312 subscriber records</span>
                   </div>
                   <div className="flex items-start gap-2">
-                    <CheckCircle className="w-4 h-4 text-green-500 mt-0.5" />
-                    <span className="text-sm text-[#A7ACBF]">Checked API rate limits</span>
+                    <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
+                    <span className="text-sm text-[#A7ACBF]">Validated all email addresses</span>
                   </div>
-                  <div className="flex items-start gap-2">
-                    <div className="w-4 h-4 rounded-full border-2 border-[#4F46E5] mt-0.5" />
-                    <span className="text-sm">Process 10,000 customer records</span>
-                  </div>
+                </div>
+
+                <p className="text-xs text-[#A7ACBF] uppercase tracking-widest mb-3">Proposed next action</p>
+                <div className="flex items-start gap-2 mb-6 p-3 rounded-lg border border-[#4F46E5]/30 bg-[#4F46E5]/5">
+                  <ArrowRight className="w-4 h-4 text-[#4F46E5] mt-0.5 shrink-0" />
+                  <span className="text-sm">Send marketing email to 312 recipients</span>
                 </div>
 
                 <div className="flex gap-3">
@@ -360,17 +370,19 @@ export default function LandingPage() {
             <div className="order-1 lg:order-2 animate-in">
               <span className="eyebrow text-[#4F46E5] mb-4 block">Approvals</span>
               <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6">
-                Stay in control with human-in-the-loop.
+                Your agent pauses. You decide. It continues.
               </h2>
               <p className="text-[#A7ACBF] text-lg mb-8">
-                Require approval for sensitive actions. Set rules by cost, risk, or scope. 
-                Jarvis holds the action until you decide.
+                When an agent sets <code className="text-[#4F46E5] bg-white/5 px-1 rounded">requiresApproval: true</code>, Jarvis
+                holds it in a <code className="text-[#4F46E5] bg-white/5 px-1 rounded">waiting_approval</code> state and surfaces the
+                request in your inbox — showing what it has already done and exactly what it wants to do next.
+                Your decision is delivered back to the agent via the command polling API.
               </p>
               <ul className="space-y-4 mb-8">
                 {[
-                  'Require approval for high-cost steps',
-                  'Auto-approve by trust rules',
-                  'Audit trail for every decision',
+                  'Agent status set to waiting_approval automatically',
+                  'Approve or reject with an optional comment',
+                  'Decision delivered via command polling — no webhook needed',
                 ].map((item, i) => (
                   <li key={i} className="flex items-center gap-3">
                     <CheckCircle className="w-5 h-5 text-[#4F46E5]" />
@@ -378,8 +390,8 @@ export default function LandingPage() {
                   </li>
                 ))}
               </ul>
-              <Link to="/inbox" className="inline-flex items-center gap-2 text-[#4F46E5] hover:gap-3 transition-all">
-                See how approvals work <ArrowRight className="w-4 h-4" />
+              <Link to="/auth" className="inline-flex items-center gap-2 text-[#4F46E5] hover:gap-3 transition-all">
+                Open the inbox <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
           </div>
@@ -393,17 +405,18 @@ export default function LandingPage() {
             <div className="animate-in">
               <span className="eyebrow text-[#4F46E5] mb-4 block">Spend Control</span>
               <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6">
-                Predictable costs. No surprises.
+                Know exactly what your agents cost.
               </h2>
               <p className="text-[#A7ACBF] text-lg mb-8">
-                Set monthly budgets, get alerts as you approach limits, and attribute spend 
-                down to the individual agent and step.
+                Every event carries a dollar cost. Jarvis aggregates that into daily and monthly totals,
+                breaks it down per agent, and measures it against a budget cap you set and can edit any time.
+                A colour-coded progress bar turns orange at 80% and red when you're over.
               </p>
               <ul className="space-y-4 mb-8">
                 {[
-                  'Monthly budget caps',
-                  'Per-agent spend attribution',
-                  'Alerts at 50%, 80%, 100%',
+                  'Daily and monthly spend aggregated automatically',
+                  'Per-agent cost breakdown on the dashboard',
+                  'Editable monthly budget cap — warning at 80%, alert at 100%',
                 ].map((item, i) => (
                   <li key={i} className="flex items-center gap-3">
                     <CheckCircle className="w-5 h-5 text-[#4F46E5]" />
@@ -411,29 +424,31 @@ export default function LandingPage() {
                   </li>
                 ))}
               </ul>
-              <Link to="/spend" className="inline-flex items-center gap-2 text-[#4F46E5] hover:gap-3 transition-all">
-                View pricing <ArrowRight className="w-4 h-4" />
+              <Link to="/auth" className="inline-flex items-center gap-2 text-[#4F46E5] hover:gap-3 transition-all">
+                View the spend dashboard <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
 
             <div className="animate-in">
               <div className="data-card p-6 space-y-4">
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between">
                   <span className="font-medium">Monthly Budget</span>
-                  <span className="text-sm text-[#A7ACBF]">$751 / $1,000</span>
+                  <span className="text-sm text-[#A7ACBF]">$843 / $1,000</span>
                 </div>
                 <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-[#4F46E5] to-[#7C3AED] rounded-full" style={{ width: '75%' }} />
+                  <div className="h-full bg-gradient-to-r from-orange-500 to-red-500 rounded-full" style={{ width: '84%' }} />
                 </div>
-                
-                <div className="pt-4 space-y-3">
+                <p className="text-xs text-orange-400">84% used — approaching your monthly cap</p>
+
+                <div className="pt-2 space-y-3 border-t border-white/5">
+                  <p className="text-xs text-[#A7ACBF] uppercase tracking-widest pt-1">Per-agent breakdown</p>
                   {[
-                    { name: 'Data Processor', spend: 245.80, percent: 33 },
-                    { name: 'Content Generator', spend: 178.90, percent: 24 },
-                    { name: 'Research Assistant', spend: 124.50, percent: 17 },
+                    { name: 'writer-agent', spend: 312.40 },
+                    { name: 'research-agent', spend: 287.60 },
+                    { name: 'ops-agent', spend: 243.00 },
                   ].map((item, i) => (
                     <div key={i} className="flex items-center justify-between">
-                      <span className="text-sm text-[#A7ACBF]">{item.name}</span>
+                      <span className="text-sm text-[#A7ACBF] font-mono">{item.name}</span>
                       <span className="text-sm font-mono">${item.spend.toFixed(2)}</span>
                     </div>
                   ))}
@@ -451,12 +466,12 @@ export default function LandingPage() {
             <div className="order-2 lg:order-1 animate-in">
               <div className="data-card p-6 space-y-4">
                 {[
-                  { icon: Lock, title: 'SSO + MFA', desc: 'Enterprise authentication' },
-                  { icon: Shield, title: 'RBAC', desc: 'Role-based access control' },
-                  { icon: Activity, title: 'Audit Logs', desc: 'Full history of all actions' },
+                  { icon: Lock, title: 'SHA-256 hashed agent tokens', desc: 'Tokens are shown once and never stored in plaintext' },
+                  { icon: Shield, title: 'Workspace isolation via RLS', desc: 'Supabase Row-Level Security keeps every workspace strictly separate' },
+                  { icon: Activity, title: 'Immutable event log', desc: 'Every action, cost, and approval decision is recorded and cannot be deleted' },
                 ].map((item, i) => (
                   <div key={i} className="flex items-center gap-4 p-4 rounded-lg border border-white/5 bg-white/[0.02]">
-                    <div className="w-10 h-10 rounded-lg bg-[#4F46E5]/20 flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-lg bg-[#4F46E5]/20 flex items-center justify-center shrink-0">
                       <item.icon className="w-5 h-5 text-[#4F46E5]" />
                     </div>
                     <div>
@@ -471,17 +486,18 @@ export default function LandingPage() {
             <div className="order-1 lg:order-2 animate-in">
               <span className="eyebrow text-[#4F46E5] mb-4 block">Security</span>
               <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6">
-                Built for production teams.
+                Secure by default, not by configuration.
               </h2>
               <p className="text-[#A7ACBF] text-lg mb-8">
-                SSO, role-based access, encrypted tokens, and a full audit trail. 
-                Deploy with confidence.
+                Agent tokens are hashed with SHA-256 before storage — the plaintext is shown once and gone.
+                Supabase Auth handles dashboard login, and Row-Level Security enforces workspace boundaries
+                at the database layer so no query can cross tenant lines.
               </p>
               <ul className="space-y-4 mb-8">
                 {[
-                  'SSO + MFA',
-                  'RBAC with scoped tokens',
-                  'Full audit history',
+                  'JWT authentication (RS256 / HS256) for dashboard sessions',
+                  'One active token per agent — revoke and regenerate any time',
+                  'All decisions logged with agent ID, timestamp, and optional comment',
                 ].map((item, i) => (
                   <li key={i} className="flex items-center gap-3">
                     <CheckCircle className="w-5 h-5 text-[#4F46E5]" />
@@ -489,9 +505,6 @@ export default function LandingPage() {
                   </li>
                 ))}
               </ul>
-              <a href="#" className="inline-flex items-center gap-2 text-[#4F46E5] hover:gap-3 transition-all">
-                Read security docs <ArrowRight className="w-4 h-4" />
-              </a>
             </div>
           </div>
         </div>
@@ -503,26 +516,26 @@ export default function LandingPage() {
           <div className="text-center mb-16">
             <span className="eyebrow text-[#4F46E5] mb-4 block">Use Cases</span>
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold">
-              Three ways teams use Jarvis.
+              Built for how people actually run agents.
             </h2>
           </div>
 
           <div className="grid md:grid-cols-3 gap-6">
             {[
-              { 
-                icon: FileSearch, 
-                title: 'Research Agent', 
-                desc: 'Summarize documents, search the web, and compile reports—with approvals for external calls.' 
+              {
+                icon: Code,
+                title: 'Solo Developer',
+                desc: "You're running Claude or GPT agents locally. Jarvis gives you a live feed of every tool call and its exact dollar cost — so nothing runs blind and no bill surprises you at month end.",
               },
-              { 
-                icon: Code, 
-                title: 'Code Agent', 
-                desc: 'Generate, test, and commit code. Jarvis tracks spend per task and pauses on failures.' 
+              {
+                icon: Bot,
+                title: 'Production Team',
+                desc: 'Gate destructive or expensive actions behind mandatory human approval. The agent pauses at the critical step, your team reviews what it has done and what it wants to do next, then decides.',
               },
-              { 
-                icon: Settings, 
-                title: 'Ops Agent', 
-                desc: 'Automate alerts, ticketing, and remediation. Human-in-the-loop for any destructive action.' 
+              {
+                icon: Settings,
+                title: 'Multi-Agent Orchestration',
+                desc: 'Register multiple agents under one workspace. Track each one independently — its status, spend, and event history — and pause or revoke any agent without touching the others.',
               },
             ].map((item, i) => (
               <div key={i} className="use-case-card data-card p-8">
