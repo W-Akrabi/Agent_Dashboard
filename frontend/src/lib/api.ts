@@ -18,6 +18,7 @@ async function apiRequest<T>(path: string, options: RequestOptions = {}): Promis
   const { data: { session } } = await supabase.auth.getSession();
 
   if (!session || !session.access_token) {
+    await supabase.auth.signOut();
     throw new Error('Not authenticated');
   }
 
@@ -49,10 +50,12 @@ async function apiRequest<T>(path: string, options: RequestOptions = {}): Promis
     if (refreshData.session) {
       response = await makeRequest(refreshData.session.access_token);
       if (response.status === 401) {
-        throw new Error(`Request failed (401)`);
+        await supabase.auth.signOut();
+        throw new Error('Session expired. Please sign in again.');
       }
     } else {
-      throw new Error(`Request failed (401)`);
+      await supabase.auth.signOut();
+      throw new Error('Session expired. Please sign in again.');
     }
   }
 

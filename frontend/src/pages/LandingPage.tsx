@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { Link } from 'react-router-dom';
+import { ContainerScroll } from '@/components/ui/container-scroll-animation';
 import { 
   Activity, 
   Shield, 
@@ -171,7 +172,7 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#05060B] text-[#F4F6FF] overflow-x-hidden">
+    <div className="min-h-screen bg-[#05060B] text-[#F4F6FF] overflow-x-clip">
       {/* HUD Frame */}
       <div className="hud-frame">
         <div className="hud-frame-left" />
@@ -263,6 +264,24 @@ export default function LandingPage() {
             ))}
           </div>
         </div>
+      </section>
+
+      {/* Dashboard Preview — ContainerScroll */}
+      <section className="relative z-10">
+        <ContainerScroll
+          titleComponent={
+            <h2 className="text-3xl md:text-4xl font-bold text-[#F4F6FF] mb-4">
+              Your agents. <span className="text-gradient">At a glance.</span>
+            </h2>
+          }
+        >
+          <img
+            src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1400&q=80"
+            alt="Jarvis Mission Control dashboard preview"
+            className="mx-auto rounded-2xl object-cover h-full w-full object-top"
+            draggable={false}
+          />
+        </ContainerScroll>
       </section>
 
       {/* Live Activity Section */}

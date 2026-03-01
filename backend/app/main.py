@@ -1,17 +1,23 @@
 from __future__ import annotations
 
+import ssl
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
+import logging
 from typing import Any
+from urllib.parse import urlparse
 from uuid import UUID
+
+import certifi
 
 import jwt
 import psycopg
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from jwt import PyJWKClient, PyJWKClientError
 from psycopg import Connection
 from psycopg.types.json import Jsonb
 
@@ -40,6 +46,14 @@ from .security import (
 )
 
 settings = get_settings()
+_jwks_clients: dict[str, PyJWKClient] = {}
+logger = logging.getLogger(__name__)
+_warned_missing_cryptography = False
+
+try:
+    import cryptography as _cryptography  # type: ignore
+except ModuleNotFoundError:
+    _cryptography = None
 
 
 @dataclass(frozen=True)
@@ -152,19 +166,134 @@ def _extract_bearer_token(authorization: str | None) -> str:
     return token.strip()
 
 
+def _get_issuer_base_url(token: str) -> str | None:
+    try:
+        payload = jwt.decode(
+            token,
+            options={
+                "verify_signature": False,
+                "verify_exp": False,
+                "verify_aud": False,
+            },
+        )
+    except jwt.InvalidTokenError:
+        return None
+
+    issuer = payload.get("iss")
+    if not isinstance(issuer, str) or not issuer:
+        return None
+
+    # Supabase typically issues tokens with iss=https://<ref>.supabase.co/auth/v1
+    # and JWKS available at /auth/v1/.well-known/jwks.json.
+    issuer_base = issuer.split("/auth/v1", 1)[0]
+    parsed = urlparse(issuer_base)
+    if not parsed.scheme or not parsed.netloc:
+        return None
+    return f"{parsed.scheme}://{parsed.netloc}".rstrip("/")
+
+
+def _decode_with_supabase_jwks(token: str) -> dict[str, Any] | None:
+    global _warned_missing_cryptography
+
+    try:
+        header = jwt.get_unverified_header(token)
+    except jwt.InvalidTokenError:
+        return None
+
+    algorithm = header.get("alg")
+    if not isinstance(algorithm, str) or algorithm.upper().startswith("HS"):
+        return None
+    if algorithm.upper().startswith("ES") and _cryptography is None:
+        if not _warned_missing_cryptography:
+            logger.warning(
+                "cryptography package is missing; ES256/ES* JWT verification is unavailable. "
+                "Install backend requirements to enable Supabase asymmetric token verification."
+            )
+            _warned_missing_cryptography = True
+        return None
+
+    issuer_base = _get_issuer_base_url(token)
+    if issuer_base is None:
+        return None
+
+    jwks_url = f"{issuer_base}/auth/v1/.well-known/jwks.json"
+    jwks_client = _jwks_clients.get(jwks_url)
+    if jwks_client is None:
+        ssl_ctx = ssl.create_default_context(cafile=certifi.where())
+        jwks_client = PyJWKClient(jwks_url, ssl_context=ssl_ctx)
+        _jwks_clients[jwks_url] = jwks_client
+
+    signing_key = jwks_client.get_signing_key_from_jwt(token).key
+    try:
+        return jwt.decode(
+            token,
+            signing_key,
+            algorithms=[algorithm],
+            options={"verify_aud": False},
+        )
+    except jwt.InvalidTokenError as e:
+        logger.warning("JWKS jwt.decode failed: %s: %s", e.__class__.__name__, e)
+        return None
+
+
+def _decode_user_token(token: str) -> dict[str, Any]:
+    try:
+        return jwt.decode(
+            token,
+            settings.supabase_jwt_secret,
+            algorithms=["HS256"],
+            options={"verify_aud": False},
+        )
+    except jwt.ExpiredSignatureError:
+        raise
+    except jwt.InvalidTokenError as hs_error:
+        try:
+            jwks_payload = _decode_with_supabase_jwks(token)
+        except (jwt.InvalidTokenError, PyJWKClientError) as jwks_error:
+            logger.warning("JWKS fallback failed: %s: %s", jwks_error.__class__.__name__, jwks_error)
+            jwks_payload = None
+        if jwks_payload is not None:
+            return jwks_payload
+        raise hs_error
+
+
 def _require_user_auth(
     authorization: str | None = Header(default=None, alias="Authorization"),
     connection: Connection[dict[str, Any]] = Depends(get_db),
 ) -> AuthenticatedUser:
     token = _extract_bearer_token(authorization)
     try:
-        payload = jwt.decode(
-            token,
-            settings.supabase_jwt_secret,
-            algorithms=["HS256"],
-            options={"verify_aud": False},
+        payload = _decode_user_token(token)
+    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError) as error:
+        alg = "unknown"
+        iss = "unknown"
+        has_sub = False
+        try:
+            header = jwt.get_unverified_header(token)
+            alg = str(header.get("alg", "unknown"))
+        except jwt.InvalidTokenError:
+            pass
+        try:
+            unverified_payload = jwt.decode(
+                token,
+                options={
+                    "verify_signature": False,
+                    "verify_exp": False,
+                    "verify_aud": False,
+                },
+            )
+            iss = str(unverified_payload.get("iss", "unknown"))
+            has_sub = bool(unverified_payload.get("sub"))
+        except jwt.InvalidTokenError:
+            pass
+
+        logger.warning(
+            "User JWT rejected (%s): alg=%s iss=%s has_sub=%s",
+            error.__class__.__name__,
+            alg,
+            iss,
+            has_sub,
         )
-    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token.",
@@ -172,6 +301,7 @@ def _require_user_auth(
 
     user_id_str = payload.get("sub")
     if not user_id_str:
+        logger.warning("User JWT rejected (missing sub claim).")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token.",
@@ -181,6 +311,7 @@ def _require_user_auth(
     try:
         user_id = UUID(user_id_str)
     except ValueError:
+        logger.warning("User JWT rejected (non-UUID sub claim).")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token.",
