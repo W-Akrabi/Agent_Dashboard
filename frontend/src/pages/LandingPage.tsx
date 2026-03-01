@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { ContainerScroll } from '@/components/ui/container-scroll-animation';
 import { SplineScene } from '@/components/ui/splite';
 import { Spotlight } from '@/components/ui/spotlight';
+import { Header1 } from '@/components/ui/header';
 import { 
   Activity, 
   Shield, 
@@ -188,28 +189,7 @@ export default function LandingPage() {
       <div className="starfield" />
 
       {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 px-6 py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-[#4F46E5] flex items-center justify-center">
-              <Bot className="w-5 h-5 text-white" />
-            </div>
-            <span className="font-bold text-lg tracking-tight">JARVIS</span>
-          </Link>
-          
-          <div className="flex items-center gap-6">
-            <a href="#" className="text-[#A7ACBF] hover:text-white transition-colors text-sm hidden sm:block">
-              Docs
-            </a>
-            <Link to="/auth" className="text-[#A7ACBF] hover:text-white transition-colors text-sm">
-              Login
-            </Link>
-            <Link to="/auth" className="btn-primary text-sm">
-              Get Started
-            </Link>
-          </div>
-        </div>
-      </nav>
+      <Header1 />
 
       {/* Hero Section — full viewport with Spline 3D */}
       <section ref={heroRef} className="h-screen relative overflow-hidden">
