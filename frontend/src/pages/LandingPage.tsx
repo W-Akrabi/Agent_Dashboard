@@ -3,6 +3,8 @@ import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { Link } from 'react-router-dom';
 import { ContainerScroll } from '@/components/ui/container-scroll-animation';
+import { SplineScene } from '@/components/ui/splite';
+import { Spotlight } from '@/components/ui/spotlight';
 import { 
   Activity, 
   Shield, 
@@ -209,59 +211,49 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <section ref={heroRef} className="min-h-screen flex items-center justify-center relative pt-20">
-        <div className="max-w-5xl mx-auto px-6 text-center relative z-10">
-          <div className="hero-badge inline-block mb-6">
-            <span className="eyebrow text-[#4F46E5] border-b border-[#4F46E5] pb-1">
-              PRIVATE BETA
-            </span>
-          </div>
-          
-          <h1 className="hero-title text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-6 uppercase tracking-tight">
-            <span className="inline-block">One Dashboard.</span>
-            <br />
-            <span className="inline-block text-gradient">Total Control.</span>
-          </h1>
-          
-          <p className="hero-subtitle text-lg md:text-xl text-[#A7ACBF] max-w-2xl mx-auto mb-10">
-            Jarvis is the oversight layer for AI agents. See every action, approve what matters, 
-            and keep costs predictable.
-          </p>
-          
-          <div className="hero-ctas flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link to="/auth" className="btn-primary w-full sm:w-auto">
-              Request Access
-            </Link>
-            <a href="#" className="btn-secondary w-full sm:w-auto">
-              View Docs
-            </a>
-          </div>
-        </div>
+      {/* Hero Section — full viewport with Spline 3D */}
+      <section ref={heroRef} className="h-screen relative overflow-hidden">
+        <Spotlight
+          className="-top-40 left-0 md:left-60 md:-top-20"
+          fill="#4F46E5"
+        />
 
-        {/* Hero Visual - Agent Cluster */}
-        <div className="hero-visual absolute inset-0 flex items-center justify-center pointer-events-none opacity-30">
-          <div className="relative w-[600px] h-[600px]">
-            {/* Orbital rings */}
-            <div className="absolute inset-0 border border-[#4F46E5]/20 rounded-full animate-spin" style={{ animationDuration: '30s' }} />
-            <div className="absolute inset-8 border border-[#4F46E5]/15 rounded-full animate-spin" style={{ animationDuration: '25s', animationDirection: 'reverse' }} />
-            <div className="absolute inset-16 border border-[#4F46E5]/10 rounded-full animate-spin" style={{ animationDuration: '20s' }} />
-            
-            {/* Center sphere */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 rounded-full bg-gradient-to-br from-[#4F46E5] to-[#7C3AED] opacity-80 blur-sm" />
-            
-            {/* Orbiting nodes */}
-            {[0, 60, 120, 180, 240, 300].map((deg, i) => (
-              <div
-                key={i}
-                className="absolute w-4 h-4 rounded-full bg-[#4F46E5]"
-                style={{
-                  top: `calc(50% + ${Math.sin((deg * Math.PI) / 180) * 200}px - 8px)`,
-                  left: `calc(50% + ${Math.cos((deg * Math.PI) / 180) * 200}px - 8px)`,
-                  boxShadow: '0 0 20px rgba(79, 70, 229, 0.6)',
-                }}
-              />
-            ))}
+        <div className="flex h-full pt-16">
+          {/* Left — text content */}
+          <div className="flex-1 flex flex-col justify-center px-8 md:px-16 relative z-10">
+            <div className="hero-badge inline-block mb-6">
+              <span className="eyebrow text-[#4F46E5] border-b border-[#4F46E5] pb-1">
+                PRIVATE BETA
+              </span>
+            </div>
+
+            <h1 className="hero-title text-4xl sm:text-5xl md:text-6xl font-bold mb-6 uppercase tracking-tight">
+              <span className="inline-block">One Dashboard.</span>
+              <br />
+              <span className="inline-block text-gradient">Total Control.</span>
+            </h1>
+
+            <p className="hero-subtitle text-lg text-[#A7ACBF] max-w-md mb-10">
+              Jarvis is the oversight layer for AI agents. See every action, approve what matters,
+              and keep costs predictable.
+            </p>
+
+            <div className="hero-ctas flex flex-col sm:flex-row gap-4">
+              <Link to="/auth" className="btn-primary w-full sm:w-auto">
+                Request Access
+              </Link>
+              <a href="#" className="btn-secondary w-full sm:w-auto">
+                View Docs
+              </a>
+            </div>
+          </div>
+
+          {/* Right — Spline 3D scene */}
+          <div className="flex-1 relative">
+            <SplineScene
+              scene="https://prod.spline.design/kZDDjO5HuC9GJUM2/scene.splinecode"
+              className="w-full h-full"
+            />
           </div>
         </div>
       </section>
