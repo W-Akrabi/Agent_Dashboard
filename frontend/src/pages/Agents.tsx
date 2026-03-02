@@ -37,7 +37,8 @@ export default function Agents() {
   const [newAgentDescription, setNewAgentDescription] = useState('');
   const [generatedToken, setGeneratedToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [copiedWebhook, setCopiedWebhook] = useState(false);
+  const [connectTab, setConnectTab] = useState('claude-code');
+  const [copiedConnect, setCopiedConnect] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -103,12 +104,21 @@ export default function Agents() {
     }
   };
 
+  const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8000';
+
+  const copyConnect = (text: string) => {
+    void navigator.clipboard.writeText(text);
+    setCopiedConnect(true);
+    window.setTimeout(() => setCopiedConnect(false), 2000);
+  };
+
   const resetModal = () => {
     setNewAgentName('');
     setNewAgentDescription('');
     setGeneratedToken(null);
     setCopied(false);
-    setCopiedWebhook(false);
+    setConnectTab('claude-code');
+    setCopiedConnect(false);
     setShowNewAgentModal(false);
   };
 
@@ -137,63 +147,112 @@ export default function Agents() {
               Register Agent
             </button>
           </DialogTrigger>
-          <DialogContent className="bg-[#0B0E16] border-white/10 text-white max-w-md">
+          <DialogContent className="bg-[#0B0E16] border-white/10 text-white max-w-xl">
             <DialogHeader>
               <DialogTitle>{generatedToken ? 'Agent Created' : 'Register New Agent'}</DialogTitle>
             </DialogHeader>
 
             {generatedToken ? (
               <div className="space-y-4">
-                <div className="p-4 rounded-lg bg-green-400/10 border border-green-400/30">
-                  <p className="text-sm text-green-400 mb-2">Agent created successfully!</p>
-                  <p className="text-xs text-[#A7ACBF]">
-                    Save both values below — you won&apos;t be able to see them again.
-                  </p>
+                <div className="p-3 rounded-lg bg-green-400/10 border border-green-400/30">
+                  <p className="text-sm text-green-400 mb-1">Agent created successfully!</p>
+                  <p className="text-xs text-[#A7ACBF]">Save your token — you won&apos;t be able to see it again.</p>
                 </div>
 
                 <div>
                   <p className="text-xs text-[#A7ACBF] mb-1 font-medium uppercase tracking-wider">Agent Token</p>
                   <div className="flex items-center gap-2">
-                    <code className="flex-1 p-3 bg-white/5 rounded-lg text-sm font-mono break-all">
-                      {generatedToken}
-                    </code>
-                    <button
-                      onClick={copyToken}
-                      className="flex items-center gap-1 px-3 py-2 bg-[#4F46E5] rounded-lg hover:bg-[#4338CA] transition-colors text-sm text-white whitespace-nowrap"
-                    >
-                      <CopiedIcon size={16} color="white" />
+                    <code className="flex-1 p-3 bg-white/5 rounded-lg text-xs font-mono break-all">{generatedToken}</code>
+                    <button onClick={copyToken} className="flex items-center gap-1 px-3 py-2 bg-[#4F46E5] rounded-lg hover:bg-[#4338CA] transition-colors text-xs text-white whitespace-nowrap">
+                      <CopiedIcon size={14} color="white" />
                       {copied ? 'Copied!' : 'Copy'}
                     </button>
                   </div>
                 </div>
 
                 <div>
-                  <p className="text-xs text-[#A7ACBF] mb-1 font-medium uppercase tracking-wider">Webhook URL</p>
-                  <p className="text-xs text-[#A7ACBF] mb-2">
-                    Paste into n8n, Make.com, Zapier, or any tool — no headers needed.
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <code className="flex-1 p-3 bg-white/5 rounded-lg text-xs font-mono break-all text-[#A7ACBF]">
-                      {`${(import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8000'}/v1/webhook/${generatedToken}`}
-                    </code>
-                    <button
-                      onClick={() => {
-                        const url = `${(import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8000'}/v1/webhook/${generatedToken}`;
-                        void navigator.clipboard.writeText(url);
-                        setCopiedWebhook(true);
-                        window.setTimeout(() => setCopiedWebhook(false), 2000);
-                      }}
-                      className="flex items-center gap-1 px-3 py-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors text-sm text-[#A7ACBF] whitespace-nowrap"
-                    >
-                      <CopiedIcon size={16} color="#A7ACBF" />
-                      {copiedWebhook ? 'Copied!' : 'Copy'}
-                    </button>
+                  <p className="text-xs text-[#A7ACBF] mb-2 font-medium uppercase tracking-wider">Connect Your Agent</p>
+                  <div className="flex border-b border-white/10 overflow-x-auto mb-3">
+                    {[
+                      { id: 'claude-code', label: 'Claude Code' },
+                      { id: 'codex', label: 'Codex' },
+                      { id: 'n8n', label: 'n8n / Make' },
+                      { id: 'python', label: 'Python' },
+                      { id: 'openai', label: 'OpenAI Agents' },
+                      { id: 'other', label: 'HTTP' },
+                    ].map(tab => (
+                      <button
+                        key={tab.id}
+                        onClick={() => setConnectTab(tab.id)}
+                        className={`px-2.5 py-2 text-xs font-medium whitespace-nowrap border-b-2 -mb-px transition-colors ${connectTab === tab.id ? 'border-[#4F46E5] text-white' : 'border-transparent text-[#A7ACBF] hover:text-white'}`}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
                   </div>
+
+                  {connectTab === 'claude-code' && (
+                    <div className="space-y-2">
+                      <p className="text-xs text-[#A7ACBF]">Step 1 — install the MCP server:</p>
+                      <code className="block p-2 bg-white/5 rounded-lg text-xs font-mono">pip install jarvis-mc-mcp</code>
+                      <p className="text-xs text-[#A7ACBF]">Step 2 — register with Claude Code:</p>
+                      <code className="block p-3 bg-white/5 rounded-lg text-xs font-mono whitespace-pre-wrap">{`claude mcp add jarvis \\\n  -e JARVIS_TOKEN=${generatedToken} \\\n  -e JARVIS_URL=${apiBaseUrl} \\\n  -- jarvis-mcp`}</code>
+                      <button onClick={() => copyConnect(`claude mcp add jarvis -e JARVIS_TOKEN=${generatedToken} -e JARVIS_URL=${apiBaseUrl} -- jarvis-mcp`)} className="flex items-center gap-1 px-3 py-1.5 bg-[#4F46E5] rounded-lg hover:bg-[#4338CA] transition-colors text-xs text-white">
+                        <CopiedIcon size={14} color="white" />{copiedConnect ? 'Copied!' : 'Copy command'}
+                      </button>
+                    </div>
+                  )}
+                  {connectTab === 'codex' && (
+                    <div className="space-y-2">
+                      <p className="text-xs text-[#A7ACBF]">Step 1 — install the MCP server:</p>
+                      <code className="block p-2 bg-white/5 rounded-lg text-xs font-mono">pip install jarvis-mc-mcp</code>
+                      <p className="text-xs text-[#A7ACBF]">Step 2 — register with Codex:</p>
+                      <code className="block p-3 bg-white/5 rounded-lg text-xs font-mono whitespace-pre-wrap">{`codex mcp add jarvis \\\n  --env JARVIS_TOKEN=${generatedToken} \\\n  --env JARVIS_URL=${apiBaseUrl} \\\n  -- jarvis-mcp`}</code>
+                      <button onClick={() => copyConnect(`codex mcp add jarvis --env JARVIS_TOKEN=${generatedToken} --env JARVIS_URL=${apiBaseUrl} -- jarvis-mcp`)} className="flex items-center gap-1 px-3 py-1.5 bg-[#4F46E5] rounded-lg hover:bg-[#4338CA] transition-colors text-xs text-white">
+                        <CopiedIcon size={14} color="white" />{copiedConnect ? 'Copied!' : 'Copy command'}
+                      </button>
+                    </div>
+                  )}
+                  {connectTab === 'n8n' && (
+                    <div className="space-y-2">
+                      <p className="text-xs text-[#A7ACBF]">Paste into n8n, Make.com, or Zapier — no headers needed:</p>
+                      <code className="block p-3 bg-white/5 rounded-lg text-xs font-mono break-all">{`${apiBaseUrl}/v1/webhook/${generatedToken}`}</code>
+                      <button onClick={() => copyConnect(`${apiBaseUrl}/v1/webhook/${generatedToken}`)} className="flex items-center gap-1 px-3 py-1.5 bg-[#4F46E5] rounded-lg hover:bg-[#4338CA] transition-colors text-xs text-white">
+                        <CopiedIcon size={14} color="white" />{copiedConnect ? 'Copied!' : 'Copy URL'}
+                      </button>
+                    </div>
+                  )}
+                  {connectTab === 'python' && (
+                    <div className="space-y-2">
+                      <p className="text-xs text-[#A7ACBF]">Install and connect:</p>
+                      <code className="block p-2 bg-white/5 rounded-lg text-xs font-mono">pip install jarvis-mc</code>
+                      <code className="block p-3 bg-white/5 rounded-lg text-xs font-mono whitespace-pre-wrap">{`from jarvis_mc import JarvisAgent\n\nagent = JarvisAgent(\n    token="${generatedToken}",\n    base_url="${apiBaseUrl}"\n)\nagent.log("Agent started")`}</code>
+                      <button onClick={() => copyConnect(`from jarvis_mc import JarvisAgent\n\nagent = JarvisAgent(\n    token="${generatedToken}",\n    base_url="${apiBaseUrl}"\n)\nagent.log("Agent started")`)} className="flex items-center gap-1 px-3 py-1.5 bg-[#4F46E5] rounded-lg hover:bg-[#4338CA] transition-colors text-xs text-white">
+                        <CopiedIcon size={14} color="white" />{copiedConnect ? 'Copied!' : 'Copy code'}
+                      </button>
+                    </div>
+                  )}
+                  {connectTab === 'openai' && (
+                    <div className="space-y-2">
+                      <p className="text-xs text-[#A7ACBF]">Add Jarvis hooks to your OpenAI Agents setup:</p>
+                      <code className="block p-3 bg-white/5 rounded-lg text-xs font-mono whitespace-pre-wrap">{`from jarvis_mc.integrations import JarvisHooks\n\nhooks = JarvisHooks(\n    token="${generatedToken}",\n    base_url="${apiBaseUrl}"\n)\n# Pass hooks= to your Agent constructor`}</code>
+                      <button onClick={() => copyConnect(`from jarvis_mc.integrations import JarvisHooks\n\nhooks = JarvisHooks(\n    token="${generatedToken}",\n    base_url="${apiBaseUrl}"\n)\n# Pass hooks= to your Agent constructor`)} className="flex items-center gap-1 px-3 py-1.5 bg-[#4F46E5] rounded-lg hover:bg-[#4338CA] transition-colors text-xs text-white">
+                        <CopiedIcon size={14} color="white" />{copiedConnect ? 'Copied!' : 'Copy code'}
+                      </button>
+                    </div>
+                  )}
+                  {connectTab === 'other' && (
+                    <div className="space-y-2">
+                      <p className="text-xs text-[#A7ACBF]">POST from any language or environment:</p>
+                      <code className="block p-3 bg-white/5 rounded-lg text-xs font-mono whitespace-pre-wrap">{`curl -X POST ${apiBaseUrl}/v1/webhook/${generatedToken} \\\n  -H "Content-Type: application/json" \\\n  -d '{"type":"action","message":"Hello from my agent"}'`}</code>
+                      <button onClick={() => copyConnect(`curl -X POST ${apiBaseUrl}/v1/webhook/${generatedToken} -H "Content-Type: application/json" -d '{"type":"action","message":"Hello from my agent"}'`)} className="flex items-center gap-1 px-3 py-1.5 bg-[#4F46E5] rounded-lg hover:bg-[#4338CA] transition-colors text-xs text-white">
+                        <CopiedIcon size={14} color="white" />{copiedConnect ? 'Copied!' : 'Copy command'}
+                      </button>
+                    </div>
+                  )}
                 </div>
 
-                <button onClick={resetModal} className="w-full btn-primary">
-                  Done
-                </button>
+                <button onClick={resetModal} className="w-full btn-primary">Done</button>
               </div>
             ) : (
               <div className="space-y-4">

@@ -1,0 +1,2 @@
+[console_scripts]
+jarvis-mcp = jarvis_mcp.server:main_sync

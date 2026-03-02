@@ -12,9 +12,8 @@ import {
   RefreshCw,
   DollarSign,
   Activity,
-  Webhook,
 } from 'lucide-react';
-import { CopiedIcon, LockUnlockIcon } from '@/components/ui/animated-state-icons';
+import { CopiedIcon } from '@/components/ui/animated-state-icons';
 import type { Agent, AgentEvent } from '@/types/index';
 import { getAgent, getAgentEvents, revokeAgentToken, updateAgentStatus } from '@/lib/api';
 import { useInvalidation } from '@/contexts/InvalidationContext';
@@ -48,8 +47,8 @@ export default function AgentDetail() {
   const { subscribe } = useInvalidation();
   const [agent, setAgent] = useState<Agent | undefined>(undefined);
   const [events, setEvents] = useState<AgentEvent[]>([]);
-  const [copied, setCopied] = useState(false);
-  const [copiedWebhook, setCopiedWebhook] = useState(false);
+  const [connectTab, setConnectTab] = useState('claude-code');
+  const [copiedConnect, setCopiedConnect] = useState(false);
   const [showRevokeDialog, setShowRevokeDialog] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -123,10 +122,12 @@ export default function AgentDetail() {
     }
   };
 
-  const copyToken = () => {
-    void navigator.clipboard.writeText(agent.tokenHash);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 2000);
+  const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8000';
+
+  const copyConnect = (text: string) => {
+    void navigator.clipboard.writeText(text);
+    setCopiedConnect(true);
+    window.setTimeout(() => setCopiedConnect(false), 2000);
   };
 
   const handleRevoke = async () => {
@@ -268,46 +269,91 @@ export default function AgentDetail() {
 
       <div className="data-card p-6">
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <LockUnlockIcon size={20} color="#4F46E5" />
-            <h3 className="font-semibold">Agent Token</h3>
+          <h3 className="font-semibold">Connect</h3>
+          <div className="flex items-center gap-2 text-xs text-[#A7ACBF]">
+            <span>Token:</span>
+            <code className="font-mono">{agent.tokenHash}</code>
           </div>
-          <button onClick={copyToken} className="flex items-center gap-1 text-sm text-[#4F46E5] hover:underline">
-            <CopiedIcon size={16} color="#4F46E5" />
-            {copied ? 'Copied!' : 'Copy'}
-          </button>
         </div>
-        <code className="block p-4 bg-white/5 rounded-lg text-sm font-mono break-all">{agent.tokenHash}</code>
-        <p className="mt-2 text-xs text-[#A7ACBF]">
-          Stored token values are masked for safety. Keep the original token from registration for agent auth.
-        </p>
-      </div>
 
-      <div className="data-card p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Webhook className="w-5 h-5 text-[#4F46E5]" />
-            <h3 className="font-semibold">Webhook URL</h3>
-          </div>
-          <button
-            onClick={() => {
-              const url = `${(import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8000'}/v1/webhook/<your-agent-token>`;
-              void navigator.clipboard.writeText(url);
-              setCopiedWebhook(true);
-              window.setTimeout(() => setCopiedWebhook(false), 2000);
-            }}
-            className="flex items-center gap-1 text-sm text-[#4F46E5] hover:underline"
-          >
-            <CopiedIcon size={16} color="#4F46E5" />
-            {copiedWebhook ? 'Copied!' : 'Copy'}
-          </button>
+        <div className="flex border-b border-white/10 overflow-x-auto mb-4">
+          {[
+            { id: 'claude-code', label: 'Claude Code' },
+            { id: 'codex', label: 'Codex' },
+            { id: 'n8n', label: 'n8n / Make' },
+            { id: 'python', label: 'Python' },
+            { id: 'openai', label: 'OpenAI Agents' },
+            { id: 'other', label: 'HTTP' },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setConnectTab(tab.id)}
+              className={`px-3 py-2 text-xs font-medium whitespace-nowrap border-b-2 -mb-px transition-colors ${connectTab === tab.id ? 'border-[#4F46E5] text-white' : 'border-transparent text-[#A7ACBF] hover:text-white'}`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
-        <code className="block p-4 bg-white/5 rounded-lg text-sm font-mono break-all text-[#A7ACBF]">
-          {`${(import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8000'}/v1/webhook/<your-agent-token>`}
-        </code>
-        <p className="mt-2 text-xs text-[#A7ACBF]">
-          Replace <code className="text-[#4F46E5]">&lt;your-agent-token&gt;</code> with your actual token. The full working URL was shown at agent creation — no headers or SDK needed.
-        </p>
+
+        {connectTab === 'claude-code' && (
+          <div className="space-y-2">
+            <p className="text-xs text-[#A7ACBF]">Step 1 — install the MCP server:</p>
+            <code className="block p-2 bg-white/5 rounded-lg text-sm font-mono">pip install jarvis-mc-mcp</code>
+            <p className="text-xs text-[#A7ACBF]">Step 2 — register with Claude Code (replace &lt;your-token&gt;):</p>
+            <code className="block p-3 bg-white/5 rounded-lg text-sm font-mono whitespace-pre-wrap">{`claude mcp add jarvis \\\n  -e JARVIS_TOKEN=<your-token> \\\n  -e JARVIS_URL=${apiBaseUrl} \\\n  -- jarvis-mcp`}</code>
+            <button onClick={() => copyConnect(`claude mcp add jarvis -e JARVIS_TOKEN=<your-token> -e JARVIS_URL=${apiBaseUrl} -- jarvis-mcp`)} className="flex items-center gap-1 px-3 py-1.5 bg-[#4F46E5] rounded-lg hover:bg-[#4338CA] transition-colors text-xs text-white">
+              <CopiedIcon size={14} color="white" />{copiedConnect ? 'Copied!' : 'Copy command'}
+            </button>
+          </div>
+        )}
+        {connectTab === 'codex' && (
+          <div className="space-y-2">
+            <p className="text-xs text-[#A7ACBF]">Step 1 — install the MCP server:</p>
+            <code className="block p-2 bg-white/5 rounded-lg text-sm font-mono">pip install jarvis-mc-mcp</code>
+            <p className="text-xs text-[#A7ACBF]">Step 2 — register with Codex (replace &lt;your-token&gt;):</p>
+            <code className="block p-3 bg-white/5 rounded-lg text-sm font-mono whitespace-pre-wrap">{`codex mcp add jarvis \\\n  --env JARVIS_TOKEN=<your-token> \\\n  --env JARVIS_URL=${apiBaseUrl} \\\n  -- jarvis-mcp`}</code>
+            <button onClick={() => copyConnect(`codex mcp add jarvis --env JARVIS_TOKEN=<your-token> --env JARVIS_URL=${apiBaseUrl} -- jarvis-mcp`)} className="flex items-center gap-1 px-3 py-1.5 bg-[#4F46E5] rounded-lg hover:bg-[#4338CA] transition-colors text-xs text-white">
+              <CopiedIcon size={14} color="white" />{copiedConnect ? 'Copied!' : 'Copy command'}
+            </button>
+          </div>
+        )}
+        {connectTab === 'n8n' && (
+          <div className="space-y-2">
+            <p className="text-xs text-[#A7ACBF]">Paste into n8n, Make.com, or Zapier — no headers needed:</p>
+            <code className="block p-3 bg-white/5 rounded-lg text-sm font-mono break-all">{`${apiBaseUrl}/v1/webhook/<your-token>`}</code>
+            <button onClick={() => copyConnect(`${apiBaseUrl}/v1/webhook/<your-token>`)} className="flex items-center gap-1 px-3 py-1.5 bg-[#4F46E5] rounded-lg hover:bg-[#4338CA] transition-colors text-xs text-white">
+              <CopiedIcon size={14} color="white" />{copiedConnect ? 'Copied!' : 'Copy URL'}
+            </button>
+          </div>
+        )}
+        {connectTab === 'python' && (
+          <div className="space-y-2">
+            <p className="text-xs text-[#A7ACBF]">Install and connect:</p>
+            <code className="block p-2 bg-white/5 rounded-lg text-sm font-mono">pip install jarvis-mc</code>
+            <code className="block p-3 bg-white/5 rounded-lg text-sm font-mono whitespace-pre-wrap">{`from jarvis_mc import JarvisAgent\n\nagent = JarvisAgent(\n    token="<your-token>",\n    base_url="${apiBaseUrl}"\n)\nagent.log("Agent started")`}</code>
+            <button onClick={() => copyConnect(`from jarvis_mc import JarvisAgent\n\nagent = JarvisAgent(\n    token="<your-token>",\n    base_url="${apiBaseUrl}"\n)\nagent.log("Agent started")`)} className="flex items-center gap-1 px-3 py-1.5 bg-[#4F46E5] rounded-lg hover:bg-[#4338CA] transition-colors text-xs text-white">
+              <CopiedIcon size={14} color="white" />{copiedConnect ? 'Copied!' : 'Copy code'}
+            </button>
+          </div>
+        )}
+        {connectTab === 'openai' && (
+          <div className="space-y-2">
+            <p className="text-xs text-[#A7ACBF]">Add Jarvis hooks to your OpenAI Agents setup:</p>
+            <code className="block p-3 bg-white/5 rounded-lg text-sm font-mono whitespace-pre-wrap">{`from jarvis_mc.integrations import JarvisHooks\n\nhooks = JarvisHooks(\n    token="<your-token>",\n    base_url="${apiBaseUrl}"\n)\n# Pass hooks= to your Agent constructor`}</code>
+            <button onClick={() => copyConnect(`from jarvis_mc.integrations import JarvisHooks\n\nhooks = JarvisHooks(\n    token="<your-token>",\n    base_url="${apiBaseUrl}"\n)\n# Pass hooks= to your Agent constructor`)} className="flex items-center gap-1 px-3 py-1.5 bg-[#4F46E5] rounded-lg hover:bg-[#4338CA] transition-colors text-xs text-white">
+              <CopiedIcon size={14} color="white" />{copiedConnect ? 'Copied!' : 'Copy code'}
+            </button>
+          </div>
+        )}
+        {connectTab === 'other' && (
+          <div className="space-y-2">
+            <p className="text-xs text-[#A7ACBF]">POST from any language or environment:</p>
+            <code className="block p-3 bg-white/5 rounded-lg text-sm font-mono whitespace-pre-wrap">{`curl -X POST ${apiBaseUrl}/v1/webhook/<your-token> \\\n  -H "Content-Type: application/json" \\\n  -d '{"type":"action","message":"Hello from my agent"}'`}</code>
+            <button onClick={() => copyConnect(`curl -X POST ${apiBaseUrl}/v1/webhook/<your-token> -H "Content-Type: application/json" -d '{"type":"action","message":"Hello from my agent"}'`)} className="flex items-center gap-1 px-3 py-1.5 bg-[#4F46E5] rounded-lg hover:bg-[#4338CA] transition-colors text-xs text-white">
+              <CopiedIcon size={14} color="white" />{copiedConnect ? 'Copied!' : 'Copy command'}
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="data-card p-6">
