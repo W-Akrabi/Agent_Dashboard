@@ -37,6 +37,7 @@ export default function Agents() {
   const [newAgentDescription, setNewAgentDescription] = useState('');
   const [generatedToken, setGeneratedToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copiedWebhook, setCopiedWebhook] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -107,6 +108,7 @@ export default function Agents() {
     setNewAgentDescription('');
     setGeneratedToken(null);
     setCopied(false);
+    setCopiedWebhook(false);
     setShowNewAgentModal(false);
   };
 
@@ -145,20 +147,50 @@ export default function Agents() {
                 <div className="p-4 rounded-lg bg-green-400/10 border border-green-400/30">
                   <p className="text-sm text-green-400 mb-2">Agent created successfully!</p>
                   <p className="text-xs text-[#A7ACBF]">
-                    Copy this token now. You won&apos;t be able to see it again.
+                    Save both values below — you won&apos;t be able to see them again.
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <code className="flex-1 p-3 bg-white/5 rounded-lg text-sm font-mono break-all">
-                    {generatedToken}
-                  </code>
-                  <button
-                    onClick={copyToken}
-                    className="p-3 bg-[#4F46E5] rounded-lg hover:bg-[#4338CA] transition-colors"
-                  >
-                    <CopiedIcon size={20} color="white" />
-                  </button>
+
+                <div>
+                  <p className="text-xs text-[#A7ACBF] mb-1 font-medium uppercase tracking-wider">Agent Token</p>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 p-3 bg-white/5 rounded-lg text-sm font-mono break-all">
+                      {generatedToken}
+                    </code>
+                    <button
+                      onClick={copyToken}
+                      className="flex items-center gap-1 px-3 py-2 bg-[#4F46E5] rounded-lg hover:bg-[#4338CA] transition-colors text-sm text-white whitespace-nowrap"
+                    >
+                      <CopiedIcon size={16} color="white" />
+                      {copied ? 'Copied!' : 'Copy'}
+                    </button>
+                  </div>
                 </div>
+
+                <div>
+                  <p className="text-xs text-[#A7ACBF] mb-1 font-medium uppercase tracking-wider">Webhook URL</p>
+                  <p className="text-xs text-[#A7ACBF] mb-2">
+                    Paste into n8n, Make.com, Zapier, or any tool — no headers needed.
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 p-3 bg-white/5 rounded-lg text-xs font-mono break-all text-[#A7ACBF]">
+                      {`${(import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8000'}/v1/webhook/${generatedToken}`}
+                    </code>
+                    <button
+                      onClick={() => {
+                        const url = `${(import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8000'}/v1/webhook/${generatedToken}`;
+                        void navigator.clipboard.writeText(url);
+                        setCopiedWebhook(true);
+                        window.setTimeout(() => setCopiedWebhook(false), 2000);
+                      }}
+                      className="flex items-center gap-1 px-3 py-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors text-sm text-[#A7ACBF] whitespace-nowrap"
+                    >
+                      <CopiedIcon size={16} color="#A7ACBF" />
+                      {copiedWebhook ? 'Copied!' : 'Copy'}
+                    </button>
+                  </div>
+                </div>
+
                 <button onClick={resetModal} className="w-full btn-primary">
                   Done
                 </button>

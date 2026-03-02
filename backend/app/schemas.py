@@ -103,3 +103,16 @@ class SpendResponse(BaseModel):
 
 class BudgetUpdateRequest(BaseModel):
     budget: float = Field(gt=0)
+
+
+class WebhookEventRequest(BaseModel):
+    model_config = {"extra": "allow"}
+
+    message: str = Field(default="Agent event", max_length=2000)
+    type: EventType = Field(default="action")
+    cost: float = Field(default=0.0, ge=0)
+
+
+class WebhookEventResponse(BaseModel):
+    ok: bool = True
+    eventId: UUID

@@ -12,6 +12,7 @@ import {
   RefreshCw,
   DollarSign,
   Activity,
+  Webhook,
 } from 'lucide-react';
 import { CopiedIcon, LockUnlockIcon } from '@/components/ui/animated-state-icons';
 import type { Agent, AgentEvent } from '@/types/index';
@@ -48,6 +49,7 @@ export default function AgentDetail() {
   const [agent, setAgent] = useState<Agent | undefined>(undefined);
   const [events, setEvents] = useState<AgentEvent[]>([]);
   const [copied, setCopied] = useState(false);
+  const [copiedWebhook, setCopiedWebhook] = useState(false);
   const [showRevokeDialog, setShowRevokeDialog] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -278,6 +280,33 @@ export default function AgentDetail() {
         <code className="block p-4 bg-white/5 rounded-lg text-sm font-mono break-all">{agent.tokenHash}</code>
         <p className="mt-2 text-xs text-[#A7ACBF]">
           Stored token values are masked for safety. Keep the original token from registration for agent auth.
+        </p>
+      </div>
+
+      <div className="data-card p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Webhook className="w-5 h-5 text-[#4F46E5]" />
+            <h3 className="font-semibold">Webhook URL</h3>
+          </div>
+          <button
+            onClick={() => {
+              const url = `${(import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8000'}/v1/webhook/<your-agent-token>`;
+              void navigator.clipboard.writeText(url);
+              setCopiedWebhook(true);
+              window.setTimeout(() => setCopiedWebhook(false), 2000);
+            }}
+            className="flex items-center gap-1 text-sm text-[#4F46E5] hover:underline"
+          >
+            <CopiedIcon size={16} color="#4F46E5" />
+            {copiedWebhook ? 'Copied!' : 'Copy'}
+          </button>
+        </div>
+        <code className="block p-4 bg-white/5 rounded-lg text-sm font-mono break-all text-[#A7ACBF]">
+          {`${(import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8000'}/v1/webhook/<your-agent-token>`}
+        </code>
+        <p className="mt-2 text-xs text-[#A7ACBF]">
+          Replace <code className="text-[#4F46E5]">&lt;your-agent-token&gt;</code> with your actual token. The full working URL was shown at agent creation — no headers or SDK needed.
         </p>
       </div>
 

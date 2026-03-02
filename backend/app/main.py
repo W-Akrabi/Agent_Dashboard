@@ -37,6 +37,8 @@ from .schemas import (
     InboxItemResponse,
     InboxStatus,
     SpendResponse,
+    WebhookEventRequest,
+    WebhookEventResponse,
 )
 from .security import (
     generate_agent_token,
@@ -717,6 +719,56 @@ def ingest_event(
         )
 
     return EventIngestResponse(event=_event_from_row(event_row), taskId=task_id)
+
+
+@app.post("/v1/webhook/{agent_token}", response_model=WebhookEventResponse, status_code=status.HTTP_201_CREATED)
+def webhook_ingest_event(
+    agent_token: str,
+    payload: WebhookEventRequest,
+    connection: Connection[dict[str, Any]] = Depends(get_db),
+) -> WebhookEventResponse:
+    agent_id = _require_agent_id(connection, agent_token)
+
+    agent_row = connection.execute(
+        "select workspace_id from agents where id = %s::uuid",
+        (agent_id,),
+    ).fetchone()
+    if agent_row is None:
+        raise HTTPException(status_code=404, detail="Agent not found.")
+
+    event_row = connection.execute(
+        """
+        insert into events (
+          agent_id,
+          workspace_id,
+          type,
+          message,
+          cost,
+          requires_approval,
+          proposed_action,
+          completed_actions
+        )
+        values (%s::uuid, %s::uuid, %s, %s, %s, false, null, %s)
+        returning id
+        """,
+        (
+            agent_id,
+            agent_row["workspace_id"],
+            payload.type,
+            payload.message,
+            payload.cost,
+            Jsonb([]),
+        ),
+    ).fetchone()
+    if event_row is None:
+        raise HTTPException(status_code=500, detail="Failed to ingest event.")
+
+    connection.execute(
+        "update agents set last_seen_at = now() where id = %s::uuid",
+        (agent_id,),
+    )
+
+    return WebhookEventResponse(ok=True, eventId=event_row["id"])
 
 
 @app.get("/v1/inbox", response_model=list[InboxItemResponse])
