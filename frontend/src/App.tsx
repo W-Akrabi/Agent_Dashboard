@@ -4,6 +4,14 @@ import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import LandingPage from './pages/LandingPage';
 import AuthPage from './pages/AuthPage';
+import LiveActivityPage from './pages/features/LiveActivity';
+import ApprovalsPage from './pages/features/Approvals';
+import SpendControlPage from './pages/features/SpendControl';
+import SecurityPage from './pages/features/Security';
+import AboutPage from './pages/AboutPage';
+import PricingPage from './pages/PricingPage';
+import ContactPage from './pages/ContactPage';
+import DocsPage from './pages/DocsPage';
 import Dashboard from './pages/Dashboard';
 import Inbox from './pages/Inbox';
 import Spend from './pages/Spend';
@@ -51,6 +59,14 @@ export default function App() {
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/auth" element={<AuthPage />} />
+          <Route path="/features/live-activity" element={<LiveActivityPage />} />
+          <Route path="/features/approvals" element={<ApprovalsPage />} />
+          <Route path="/features/spend-control" element={<SpendControlPage />} />
+          <Route path="/features/security" element={<SecurityPage />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/pricing" element={<PricingPage />} />
+          <Route path="/contact" element={<ContactPage />} />
+          <Route path="/docs" element={<DocsPage />} />
           <Route element={<ProtectedRoute />}>
             <Route element={<Layout />}>
               <Route path="/dashboard" element={<Dashboard />} />

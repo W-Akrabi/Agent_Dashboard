@@ -20,20 +20,20 @@ const navigationItems = [
     title: 'Product',
     description: 'Everything you need to oversee AI agents at scale.',
     items: [
-      { title: 'Live Activity',  href: '/#activity' },
-      { title: 'Approvals',      href: '/#approvals' },
-      { title: 'Spend Control',  href: '/#spend' },
-      { title: 'Security',       href: '/#security' },
+      { title: 'Live Activity',  href: '/features/live-activity' },
+      { title: 'Approvals',      href: '/features/approvals' },
+      { title: 'Spend Control',  href: '/features/spend-control' },
+      { title: 'Security',       href: '/features/security' },
     ],
   },
   {
     title: 'Company',
     description: 'Built by engineers who ran agents in production.',
     items: [
-      { title: 'About',         href: '/#about' },
-      { title: 'Pricing',       href: '/#pricing' },
-      { title: 'Contact',       href: '/#contact' },
-      { title: 'Docs',          href: '#' },
+      { title: 'About',         href: '/about' },
+      { title: 'Pricing',       href: '/pricing' },
+      { title: 'Contact',       href: '/contact' },
+      { title: 'Docs',          href: '/docs' },
     ],
   },
 ];
