@@ -10,12 +10,9 @@ export const NAV_ITEMS: NavItem[] = [
     { id: 'inbox', label: 'Inbox', icon: '📥' },
     { id: 'workshop', label: 'Workshop', icon: '📋' },
     { id: 'spend', label: 'API Spend', icon: '💸' },
-    { id: 'scheduler', label: 'Scheduler', icon: '⏱️' },
     { id: 'comms', label: 'Comms Hub', icon: '💬' },
     { id: 'sleep', label: 'Sleep Mode', icon: '🌙' },
-    { id: 'memory', label: 'Memory', icon: '🧠' },
     { id: 'key-vault', label: 'Key Vault', icon: '🔐' },
-    { id: 'ingest-api', label: 'The Glue', icon: '🔌' },
 ];
 
 export const MOCK_AGENTS: Agent[] = [

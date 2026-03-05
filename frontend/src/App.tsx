@@ -22,12 +22,9 @@ import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
 import { InvalidationProvider } from './contexts/InvalidationContext';
 import { Workshop } from './views/Workshop';
-import { Scheduler } from './views/Scheduler';
 import { CommsHub } from './views/CommsHub';
 import { SleepMode } from './views/SleepMode';
-import { Memory } from './views/Memory';
 import { KeyVault } from './views/KeyVault';
-import { IngestApi } from './views/IngestApi';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -75,12 +72,9 @@ export default function App() {
               <Route path="/agents" element={<Agents />} />
               <Route path="/agents/:id" element={<AgentDetail />} />
               <Route path="/workshop" element={<Workshop />} />
-              <Route path="/scheduler" element={<Scheduler />} />
               <Route path="/comms" element={<CommsHub />} />
               <Route path="/sleep" element={<SleepMode />} />
-              <Route path="/memory" element={<Memory />} />
               <Route path="/key-vault" element={<KeyVault />} />
-              <Route path="/glue" element={<IngestApi />} />
             </Route>
           </Route>
           <Route path="*" element={<Navigate to="/auth" replace />} />
