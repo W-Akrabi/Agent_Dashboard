@@ -31,6 +31,10 @@ from .schemas import (
     AgentStatusUpdateRequest,
     BudgetUpdateRequest,
     CommandResponse,
+    CommsAgentSummary,
+    CommsMessageResponse,
+    CommsReplyRequest,
+    CommsSendRequest,
     EventIngestRequest,
     EventIngestResponse,
     InboxDecisionRequest,
@@ -123,6 +127,25 @@ def _command_from_row(row: dict[str, Any]) -> CommandResponse:
         status=row["status"],
         createdAt=row["created_at"],
         sourceTaskId=row.get("source_task_id"),
+        sourceMessageId=row.get("source_message_id"),
+    )
+
+
+def _comms_message_from_row(row: dict[str, Any]) -> CommsMessageResponse:
+    metadata = row.get("metadata") or {}
+    if not isinstance(metadata, dict):
+        metadata = {}
+    return CommsMessageResponse(
+        id=row["id"],
+        agentId=row["agent_id"],
+        sender=row["sender"],
+        content=row["content"],
+        messageStatus=row["message_status"],
+        replyToMessageId=row.get("reply_to_message_id"),
+        metadata=metadata,
+        createdAt=row["created_at"],
+        deliveredAt=row.get("delivered_at"),
+        respondedAt=row.get("responded_at"),
     )
 
 
@@ -1042,7 +1065,8 @@ def get_commands(
               payload,
               status,
               created_at,
-              source_task_id
+              source_task_id,
+              source_message_id
             from commands
             where agent_id = %s::uuid
               and status = 'pending'
@@ -1061,7 +1085,8 @@ def get_commands(
               payload,
               status,
               created_at,
-              source_task_id
+              source_task_id,
+              source_message_id
             from commands
             where agent_id = %s::uuid
               and status = 'pending'
@@ -1092,10 +1117,255 @@ def acknowledge_command(
           payload,
           status,
           created_at,
-          source_task_id
+          source_task_id,
+          source_message_id
         """,
         (command_id, agent_id),
     ).fetchone()
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Command not found.")
+
+    # If this is a human_message command, mark the linked comms message as delivered
+    if row["kind"] == "human_message" and row.get("source_message_id"):
+        connection.execute(
+            """
+            update comms_messages
+            set message_status = 'delivered', delivered_at = now()
+            where id = %s::uuid and message_status = 'queued'
+            """,
+            (row["source_message_id"],),
+        )
+
     return _command_from_row(row)
+
+
+# ============================================================================
+# Comms Hub endpoints
+# ============================================================================
+
+@app.get("/v1/comms/agents", response_model=list[CommsAgentSummary])
+def list_comms_agents(
+    auth_user: AuthenticatedUser = Depends(_require_user_auth),
+    connection: Connection[dict[str, Any]] = Depends(get_db),
+) -> list[CommsAgentSummary]:
+    rows = connection.execute(
+        """
+        select
+          a.id as agent_id,
+          a.name as agent_name,
+          a.status as agent_status,
+          last_msg.content as last_message,
+          last_msg.created_at as last_message_at,
+          coalesce(queued.cnt, 0)::int as queued_count,
+          coalesce(pending_approvals.cnt, 0)::int as pending_approval_count
+        from agents a
+        left join lateral (
+          select content, created_at
+          from comms_messages
+          where agent_id = a.id
+          order by created_at desc
+          limit 1
+        ) last_msg on true
+        left join lateral (
+          select count(*)::int as cnt
+          from comms_messages
+          where agent_id = a.id and sender = 'human' and message_status = 'queued'
+        ) queued on true
+        left join lateral (
+          select count(*)::int as cnt
+          from tasks
+          where agent_id = a.id and status = 'pending'
+        ) pending_approvals on true
+        where a.workspace_id = %s::uuid
+        order by last_msg.created_at desc nulls last, a.created_at desc
+        """,
+        (auth_user.workspace_id,),
+    ).fetchall()
+
+    return [
+        CommsAgentSummary(
+            agentId=row["agent_id"],
+            agentName=row["agent_name"],
+            agentStatus=row["agent_status"],
+            lastMessage=row.get("last_message"),
+            lastMessageAt=row.get("last_message_at"),
+            queuedCount=int(row["queued_count"] or 0),
+            pendingApprovalCount=int(row["pending_approval_count"] or 0),
+        )
+        for row in rows
+    ]
+
+
+@app.get("/v1/comms/agents/{agent_id}/messages", response_model=list[CommsMessageResponse])
+def get_comms_messages(
+    agent_id: UUID,
+    limit: int = Query(default=100, ge=1, le=500),
+    before: datetime | None = Query(default=None),
+    auth_user: AuthenticatedUser = Depends(_require_user_auth),
+    connection: Connection[dict[str, Any]] = Depends(get_db),
+) -> list[CommsMessageResponse]:
+    # Verify agent belongs to workspace
+    agent_check = connection.execute(
+        "select 1 from agents where id = %s::uuid and workspace_id = %s::uuid",
+        (agent_id, auth_user.workspace_id),
+    ).fetchone()
+    if agent_check is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found.")
+
+    if before:
+        rows = connection.execute(
+            """
+            select
+              id, agent_id, sender, content, message_status,
+              reply_to_message_id, metadata, created_at, delivered_at, responded_at
+            from comms_messages
+            where agent_id = %s::uuid and workspace_id = %s::uuid and created_at < %s
+            order by created_at asc
+            limit %s
+            """,
+            (agent_id, auth_user.workspace_id, before, limit),
+        ).fetchall()
+    else:
+        rows = connection.execute(
+            """
+            select
+              id, agent_id, sender, content, message_status,
+              reply_to_message_id, metadata, created_at, delivered_at, responded_at
+            from comms_messages
+            where agent_id = %s::uuid and workspace_id = %s::uuid
+            order by created_at asc
+            limit %s
+            """,
+            (agent_id, auth_user.workspace_id, limit),
+        ).fetchall()
+
+    return [_comms_message_from_row(row) for row in rows]
+
+
+@app.post(
+    "/v1/comms/agents/{agent_id}/messages",
+    response_model=CommsMessageResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def send_comms_message(
+    agent_id: UUID,
+    payload: CommsSendRequest,
+    auth_user: AuthenticatedUser = Depends(_require_user_auth),
+    connection: Connection[dict[str, Any]] = Depends(get_db),
+) -> CommsMessageResponse:
+    # Verify agent belongs to workspace
+    agent_check = connection.execute(
+        "select 1 from agents where id = %s::uuid and workspace_id = %s::uuid",
+        (agent_id, auth_user.workspace_id),
+    ).fetchone()
+    if agent_check is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found.")
+
+    with connection.transaction():
+        msg_row = connection.execute(
+            """
+            insert into comms_messages
+              (workspace_id, agent_id, sender, content, message_status, metadata)
+            values (%s::uuid, %s::uuid, 'human', %s, 'queued', %s)
+            returning
+              id, agent_id, sender, content, message_status,
+              reply_to_message_id, metadata, created_at, delivered_at, responded_at
+            """,
+            (
+                auth_user.workspace_id,
+                agent_id,
+                payload.content,
+                Jsonb(payload.metadata),
+            ),
+        ).fetchone()
+        if msg_row is None:
+            raise HTTPException(status_code=500, detail="Failed to create message.")
+
+        # Create corresponding command so the agent can poll and receive it
+        connection.execute(
+            """
+            insert into commands
+              (agent_id, workspace_id, source_message_id, kind, payload, status)
+            values (%s::uuid, %s::uuid, %s::uuid, 'human_message', %s, 'pending')
+            """,
+            (
+                agent_id,
+                auth_user.workspace_id,
+                msg_row["id"],
+                Jsonb({"messageId": str(msg_row["id"]), "content": payload.content}),
+            ),
+        )
+
+    return _comms_message_from_row(msg_row)
+
+
+@app.post(
+    "/v1/comms/replies",
+    response_model=CommsMessageResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def post_comms_reply(
+    payload: CommsReplyRequest,
+    x_agent_token: str | None = Header(default=None, alias="X-Agent-Token"),
+    connection: Connection[dict[str, Any]] = Depends(get_db),
+) -> CommsMessageResponse:
+    agent_id = _require_agent_id(connection, x_agent_token)
+
+    agent_row = connection.execute(
+        "select workspace_id from agents where id = %s::uuid",
+        (agent_id,),
+    ).fetchone()
+    if agent_row is None:
+        raise HTTPException(status_code=404, detail="Agent not found.")
+    workspace_id = agent_row["workspace_id"]
+
+    # Validate reply_to_message belongs to this agent
+    if payload.replyToMessageId:
+        parent = connection.execute(
+            """
+            select 1 from comms_messages
+            where id = %s::uuid and agent_id = %s::uuid
+            """,
+            (payload.replyToMessageId, agent_id),
+        ).fetchone()
+        if parent is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Referenced message not found for this agent.",
+            )
+
+    with connection.transaction():
+        msg_row = connection.execute(
+            """
+            insert into comms_messages
+              (workspace_id, agent_id, sender, content, message_status,
+               reply_to_message_id, metadata)
+            values (%s::uuid, %s::uuid, 'agent', %s, 'responded', %s, %s)
+            returning
+              id, agent_id, sender, content, message_status,
+              reply_to_message_id, metadata, created_at, delivered_at, responded_at
+            """,
+            (
+                workspace_id,
+                agent_id,
+                payload.content,
+                payload.replyToMessageId,
+                Jsonb(payload.metadata),
+            ),
+        ).fetchone()
+        if msg_row is None:
+            raise HTTPException(status_code=500, detail="Failed to create reply.")
+
+        # Mark the parent human message as responded
+        if payload.replyToMessageId:
+            connection.execute(
+                """
+                update comms_messages
+                set message_status = 'responded', responded_at = now()
+                where id = %s::uuid and agent_id = %s::uuid
+                  and message_status in ('queued', 'delivered')
+                """,
+                (payload.replyToMessageId, agent_id),
+            )
+
+    return _comms_message_from_row(msg_row)

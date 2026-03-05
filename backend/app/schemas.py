@@ -11,6 +11,8 @@ AgentStatus = Literal["running", "idle", "paused", "error", "waiting_approval"]
 EventType = Literal["action", "completion", "error", "tool_call", "approval_request"]
 InboxStatus = Literal["pending", "approved", "rejected"]
 CommandStatus = Literal["pending", "acked"]
+CommsMessageStatus = Literal["queued", "delivered", "responded"]
+CommsSender = Literal["human", "agent", "system"]
 
 
 class AgentResponse(BaseModel):
@@ -86,6 +88,41 @@ class CommandResponse(BaseModel):
     status: CommandStatus
     createdAt: datetime
     sourceTaskId: UUID | None = None
+    sourceMessageId: UUID | None = None
+
+
+class CommsAgentSummary(BaseModel):
+    agentId: UUID
+    agentName: str
+    agentStatus: AgentStatus
+    lastMessage: str | None = None
+    lastMessageAt: datetime | None = None
+    queuedCount: int
+    pendingApprovalCount: int
+
+
+class CommsMessageResponse(BaseModel):
+    id: UUID
+    agentId: UUID
+    sender: CommsSender
+    content: str
+    messageStatus: CommsMessageStatus
+    replyToMessageId: UUID | None = None
+    metadata: dict[str, Any]
+    createdAt: datetime
+    deliveredAt: datetime | None = None
+    respondedAt: datetime | None = None
+
+
+class CommsSendRequest(BaseModel):
+    content: str = Field(min_length=1, max_length=10000)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommsReplyRequest(BaseModel):
+    content: str = Field(min_length=1, max_length=10000)
+    replyToMessageId: UUID | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class SpendBreakdownItem(BaseModel):
