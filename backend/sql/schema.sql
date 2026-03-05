@@ -265,21 +265,74 @@ CREATE TRIGGER commands_populate_workspace_id
   EXECUTE PROCEDURE public.commands_populate_workspace_id();
 
 -- ============================================================================
+-- comms_messages
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS comms_messages (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  workspace_id uuid NOT NULL,
+  agent_id uuid NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+  sender text NOT NULL CHECK (sender IN ('human', 'agent', 'system')),
+  content text NOT NULL,
+  message_status text NOT NULL DEFAULT 'queued'
+    CHECK (message_status IN ('queued', 'delivered', 'responded')),
+  reply_to_message_id uuid REFERENCES comms_messages(id) ON DELETE SET NULL,
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  delivered_at timestamptz,
+  responded_at timestamptz
+);
+
+CREATE INDEX IF NOT EXISTS idx_comms_messages_agent_created_at
+  ON comms_messages(agent_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_comms_messages_workspace_agent_created_at
+  ON comms_messages(workspace_id, agent_id, created_at DESC);
+
+-- Trigger: auto-populate workspace_id from agents
+CREATE OR REPLACE FUNCTION public.comms_messages_populate_workspace_id()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW.workspace_id IS NULL THEN
+    SELECT workspace_id INTO NEW.workspace_id FROM agents WHERE id = NEW.agent_id;
+  END IF;
+  RETURN NEW;
+END $$;
+
+DROP TRIGGER IF EXISTS comms_messages_populate_workspace_id ON comms_messages;
+CREATE TRIGGER comms_messages_populate_workspace_id
+  BEFORE INSERT ON comms_messages
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.comms_messages_populate_workspace_id();
+
+-- Add source_message_id to commands (links command to the comms message that triggered it)
+ALTER TABLE commands ADD COLUMN IF NOT EXISTS source_message_id uuid REFERENCES comms_messages(id) ON DELETE SET NULL;
+
+-- Partial unique index: one human_message command per source_message_id
+CREATE UNIQUE INDEX IF NOT EXISTS idx_commands_one_per_source_message
+  ON commands(source_message_id)
+  WHERE source_message_id IS NOT NULL AND kind = 'human_message';
+
+-- ============================================================================
 -- Realtime configuration
 -- ============================================================================
 
 ALTER TABLE events REPLICA IDENTITY FULL;
 ALTER TABLE tasks  REPLICA IDENTITY FULL;
 ALTER TABLE agents REPLICA IDENTITY FULL;
+ALTER TABLE comms_messages REPLICA IDENTITY FULL;
 
 -- ============================================================================
 -- Row Level Security (RLS)
 -- ============================================================================
 
-ALTER TABLE agents   ENABLE ROW LEVEL SECURITY;
-ALTER TABLE events   ENABLE ROW LEVEL SECURITY;
-ALTER TABLE tasks    ENABLE ROW LEVEL SECURITY;
-ALTER TABLE commands ENABLE ROW LEVEL SECURITY;
+ALTER TABLE agents         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE events         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tasks          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE commands       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE comms_messages ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "workspace_select" ON agents;
 CREATE POLICY "workspace_select" ON agents
@@ -301,6 +354,12 @@ CREATE POLICY "workspace_select" ON tasks
 
 DROP POLICY IF EXISTS "workspace_select" ON commands;
 CREATE POLICY "workspace_select" ON commands
+  FOR SELECT USING (
+    workspace_id = (SELECT workspace_id FROM public.users WHERE id = auth.uid())
+  );
+
+DROP POLICY IF EXISTS "workspace_select" ON comms_messages;
+CREATE POLICY "workspace_select" ON comms_messages
   FOR SELECT USING (
     workspace_id = (SELECT workspace_id FROM public.users WHERE id = auth.uid())
   );
