@@ -9,6 +9,7 @@ const sections = [
   { id: 'http-api', label: 'HTTP API' },
   { id: 'events', label: 'Event Types' },
   { id: 'approvals', label: 'Approvals' },
+  { id: 'comms-hub', label: 'Comms Hub' },
 ];
 
 export default function DocsPage() {
@@ -123,9 +124,11 @@ curl -X POST https://your-instance.com/v1/events \\
                 <h2 className="text-2xl font-bold">MCP Server</h2>
               </div>
               <p className="text-[#A7ACBF] mb-6">
-                The Jarvis MCP server exposes two tools —{' '}
-                <code className="text-[#4F46E5] bg-white/5 px-1.5 rounded">log_action</code> and{' '}
-                <code className="text-[#4F46E5] bg-white/5 px-1.5 rounded">request_approval</code> —
+                The Jarvis MCP server exposes four tools —{' '}
+                <code className="text-[#4F46E5] bg-white/5 px-1.5 rounded">log_action</code>,{' '}
+                <code className="text-[#4F46E5] bg-white/5 px-1.5 rounded">request_approval</code>,{' '}
+                <code className="text-[#4F46E5] bg-white/5 px-1.5 rounded">fetch_human_messages</code>, and{' '}
+                <code className="text-[#4F46E5] bg-white/5 px-1.5 rounded">send_human_reply</code> —
                 to any MCP-compatible agent: Claude Code, Codex CLI, Cursor, Windsurf, or custom agents
                 using the OpenAI Agents SDK.
               </p>
@@ -471,6 +474,155 @@ POST /v1/events
                       </div>
                     ))}
                   </div>
+                </div>
+              </div>
+            </section>
+
+            {/* Comms Hub */}
+            <section id="comms-hub">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-8 h-8 rounded-lg bg-[#4F46E5]/20 flex items-center justify-center">
+                  <Bot className="w-4 h-4 text-[#4F46E5]" />
+                </div>
+                <h2 className="text-2xl font-bold">Comms Hub</h2>
+              </div>
+              <p className="text-[#A7ACBF] mb-6">
+                The Comms Hub gives you a persistent, per-agent chat channel — like a direct line into each agent's work.
+                Messages queue even when the agent is offline or paused. Agents poll for them via the standard commands
+                endpoint and reply via <code className="text-[#4F46E5] bg-white/5 px-1.5 rounded">POST /v1/comms/replies</code>.
+              </p>
+
+              <div className="space-y-6">
+                {/* Data flow */}
+                <div className="data-card p-6">
+                  <h3 className="font-semibold mb-4">Data flow</h3>
+                  <div className="space-y-2">
+                    {[
+                      'User sends a message in the Comms Hub UI',
+                      'Backend writes a comms_messages row (sender=human, status=queued)',
+                      'Backend creates a commands row (kind=human_message) linking to the message',
+                      'Agent polls GET /v1/commands, finds human_message commands',
+                      'Agent does its work and replies via POST /v1/comms/replies',
+                      'Agent acks the command via POST /v1/commands/{id}/ack',
+                      'Backend marks message delivered on ack, responded on reply',
+                      'Frontend updates in real-time via Supabase postgres_changes',
+                    ].map((step, i) => (
+                      <div key={step} className="flex items-start gap-3 text-sm">
+                        <span className="text-[#4F46E5]/60 font-mono shrink-0 w-4">{i + 1}.</span>
+                        <span className="text-[#A7ACBF]">{step}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Python SDK */}
+                <div className="data-card p-6">
+                  <h3 className="font-semibold mb-3">Python SDK — Comms helpers</h3>
+                  <pre className="text-xs font-mono text-[#F4F6FF] bg-white/5 rounded-lg p-4 overflow-x-auto whitespace-pre">{`from jarvis_mc import JarvisAgent
+
+agent = JarvisAgent(token="jmc_your_token")
+
+# Option A: poll-and-reply loop
+while True:
+    for cmd in agent.get_human_messages():
+        user_text = cmd["payload"]["content"]
+        # ... do work ...
+        agent.respond_to_human_command(cmd, f"Done: {result}")
+    time.sleep(10)
+
+# Option B: reply + ack manually
+msgs = agent.get_human_messages()
+if msgs:
+    cmd = msgs[0]
+    agent.reply(
+        content="Working on it!",
+        reply_to_message_id=cmd["payload"]["messageId"],
+        metadata={"cost": 0.012, "model": "claude-sonnet-4-6"},
+    )
+    agent.ack(cmd["id"])`}</pre>
+                </div>
+
+                {/* MCP tools */}
+                <div className="data-card p-6">
+                  <h3 className="font-semibold mb-3">MCP tools</h3>
+                  <p className="text-sm text-[#A7ACBF] mb-4">
+                    Two optional tools are available for agents that communicate via MCP:
+                  </p>
+                  <div className="space-y-4">
+                    {[
+                      {
+                        name: 'fetch_human_messages',
+                        desc: 'Returns all pending human messages from the Comms Hub. Use at the start of a work loop.',
+                      },
+                      {
+                        name: 'send_human_reply',
+                        desc: 'Posts a reply and acks the source command. Accepts content, command_id, reply_to_message_id, cost, model.',
+                      },
+                    ].map((tool) => (
+                      <div key={tool.name}>
+                        <code className="text-sm text-[#4F46E5] bg-white/5 px-2 py-1 rounded">{tool.name}</code>
+                        <p className="text-sm text-[#A7ACBF] mt-1">{tool.desc}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* API reference */}
+                <div className="data-card p-6">
+                  <h3 className="font-semibold mb-3">HTTP API reference</h3>
+                  <div className="space-y-3 font-mono text-xs">
+                    {[
+                      { method: 'GET', path: '/v1/comms/agents', auth: 'user', desc: 'Per-agent summaries: last message, queued count, pending approvals' },
+                      { method: 'GET', path: '/v1/comms/agents/{id}/messages', auth: 'user', desc: 'Paginated timeline (asc). Query: limit, before (ISO timestamp)' },
+                      { method: 'POST', path: '/v1/comms/agents/{id}/messages', auth: 'user', desc: 'Send human message. Body: { content, metadata? }' },
+                      { method: 'POST', path: '/v1/comms/replies', auth: 'agent', desc: 'Agent reply. Body: { content, replyToMessageId?, metadata? }' },
+                    ].map((row) => (
+                      <div key={row.path} className="flex flex-wrap items-start gap-2 text-[#F4F6FF]">
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 ${row.method === 'GET' ? 'bg-sky-500/20 text-sky-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                          {row.method}
+                        </span>
+                        <span className="text-[#4F46E5]">{row.path}</span>
+                        <span className="text-[#555870]">({row.auth})</span>
+                        <span className="text-[#A7ACBF] text-[11px] w-full mt-0.5 pl-0">{row.desc}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* human_message command */}
+                <div className="data-card p-6">
+                  <h3 className="font-semibold mb-3">human_message command kind</h3>
+                  <p className="text-sm text-[#A7ACBF] mb-3">
+                    When a user sends a message, the backend creates a command with{' '}
+                    <code className="text-[#4F46E5] bg-white/5 px-1.5 rounded">kind: "human_message"</code>.
+                    Agents filter for these alongside approval_decision commands.
+                  </p>
+                  <pre className="text-xs font-mono text-[#F4F6FF] bg-white/5 rounded-lg p-4 overflow-x-auto whitespace-pre">{`// GET /v1/commands response item
+{
+  "id": "cmd-uuid",
+  "kind": "human_message",
+  "status": "pending",
+  "sourceMessageId": "msg-uuid",
+  "payload": {
+    "messageId": "msg-uuid",
+    "content": "Hey, what's the status of the report?"
+  }
+}`}</pre>
+                </div>
+
+                <div className="space-y-2">
+                  {[
+                    'Messages queue regardless of agent status — offline or paused agents accumulate messages safely',
+                    'One persistent thread per agent in V1 (no multi-conversation support)',
+                    'Raw agent text is rendered as-is in the Comms Hub',
+                    'Approval decisions still flow through the Inbox; Comms Hub links there via a banner',
+                    'Reply metadata fields (cost, model) appear as footer chips in the UI',
+                  ].map((item) => (
+                    <div key={item} className="flex items-start gap-2 text-sm">
+                      <CheckCircle className="w-4 h-4 text-[#4F46E5] shrink-0 mt-0.5" />
+                      <span className="text-[#A7ACBF]">{item}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </section>
