@@ -187,6 +187,92 @@ class JarvisAgent:
         """
         return self._post(f"/v1/commands/{command_id}/ack", {})
 
+    # ── Comms Hub helpers ─────────────────────────────────────────────────────
+
+    def get_human_messages(self) -> list[dict[str, Any]]:
+        """
+        Return all pending human_message commands for this agent.
+
+        These are messages sent by the user from the Comms Hub that are waiting
+        for the agent to read and reply. Each command contains:
+            - id: command UUID (use to ack)
+            - payload.messageId: comms_messages UUID
+            - payload.content: the human's message text
+
+        Example::
+            for cmd in agent.get_human_messages():
+                print(cmd["payload"]["content"])
+                agent.respond_to_human_command(cmd, "Got it!")
+        """
+        commands = self._get("/v1/commands")
+        return [c for c in commands if c.get("kind") == "human_message" and c.get("status") == "pending"]
+
+    def reply(
+        self,
+        content: str,
+        reply_to_message_id: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """
+        Post a reply to the Comms Hub as the agent.
+
+        Parameters
+        ----------
+        content:
+            The reply text to send back to the human.
+        reply_to_message_id:
+            Optional UUID of the comms_messages row being replied to.
+            When provided, the parent human message is marked as 'responded'.
+        metadata:
+            Optional dict (e.g. {"cost": 0.012, "model": "claude-sonnet-4-6"}).
+        """
+        body: dict[str, Any] = {
+            "content": content,
+            "metadata": metadata or {},
+        }
+        if reply_to_message_id:
+            body["replyToMessageId"] = reply_to_message_id
+        return self._post("/v1/comms/replies", body)
+
+    def respond_to_human_command(
+        self,
+        command: dict[str, Any],
+        content: str,
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """
+        Reply to a human_message command then acknowledge it.
+
+        This is the canonical one-call flow for responding to a Comms Hub
+        message from the agent side:
+        1. POST /v1/comms/replies (marks parent message as responded)
+        2. POST /v1/commands/{id}/ack (marks command as acked)
+
+        Parameters
+        ----------
+        command:
+            A command dict returned by get_human_messages().
+        content:
+            The reply text.
+        metadata:
+            Optional metadata (e.g. cost, model name).
+
+        Returns
+        -------
+        The created CommsMessage dict from the reply endpoint.
+
+        Example::
+            for cmd in agent.get_human_messages():
+                reply = agent.respond_to_human_command(cmd, "Working on it!")
+        """
+        message_id = command.get("payload", {}).get("messageId")
+        reply_msg = self.reply(content, reply_to_message_id=message_id, metadata=metadata)
+        try:
+            self.ack(command["id"])
+        except Exception:  # noqa: BLE001
+            pass  # ack failure shouldn't block the caller
+        return reply_msg
+
 
 class AnthropicJarvis:
     """

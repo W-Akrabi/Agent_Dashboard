@@ -29,8 +29,10 @@ Setup (OpenAI Agents SDK):
     agent = Agent(mcp_servers=[jarvis])
 
 Tools exposed:
-    log_action        — Report a significant action or milestone
-    request_approval  — Block until a human approves/rejects in the dashboard
+    log_action           — Report a significant action or milestone
+    request_approval     — Block until a human approves/rejects in the dashboard
+    fetch_human_messages — Poll for pending human messages from the Comms Hub
+    send_human_reply     — Send a reply back to the human in the Comms Hub
 """
 from __future__ import annotations
 
@@ -123,6 +125,54 @@ async def list_tools() -> list[Tool]:
                 "required": ["message", "proposed_action"],
             },
         ),
+        Tool(
+            name="fetch_human_messages",
+            description=(
+                "Fetch pending human messages from the Jarvis Comms Hub. "
+                "Returns a list of messages the user has sent from the dashboard that are waiting for an agent reply. "
+                "Use this to implement a poll-and-reply loop: check for messages, process them, then call send_human_reply."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {},
+                "required": [],
+            },
+        ),
+        Tool(
+            name="send_human_reply",
+            description=(
+                "Send a reply to a human message in the Jarvis Comms Hub. "
+                "After calling fetch_human_messages and processing a message, use this to send a reply. "
+                "Provide the command_id from the fetched message so the original message is marked as responded."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "content": {
+                        "type": "string",
+                        "description": "The reply text to send back to the human",
+                    },
+                    "command_id": {
+                        "type": "string",
+                        "description": "The command ID from fetch_human_messages (used to ack and link the reply)",
+                    },
+                    "reply_to_message_id": {
+                        "type": "string",
+                        "description": "The comms message UUID to reply to (found in the command payload as messageId)",
+                    },
+                    "cost": {
+                        "type": "number",
+                        "description": "Optional USD cost incurred to generate this reply",
+                        "default": 0,
+                    },
+                    "model": {
+                        "type": "string",
+                        "description": "Optional model name used to generate this reply",
+                    },
+                },
+                "required": ["content", "command_id"],
+            },
+        ),
     ]
 
 
@@ -193,6 +243,61 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 type="text",
                 text=f"Decision: timed out after {timeout_minutes} minute(s). No response from dashboard. Treat as rejected and abort."
             )]
+
+        elif name == "fetch_human_messages":
+            try:
+                cmd_response = await client.get(f"{JARVIS_URL}/v1/commands")
+                cmd_response.raise_for_status()
+            except httpx.HTTPError as exc:
+                return [TextContent(type="text", text=f"Error fetching commands: {exc}")]
+
+            human_cmds = [
+                c for c in cmd_response.json()
+                if c.get("kind") == "human_message" and c.get("status") == "pending"
+            ]
+            if not human_cmds:
+                return [TextContent(type="text", text="No pending human messages.")]
+
+            lines = []
+            for cmd in human_cmds:
+                payload = cmd.get("payload", {})
+                lines.append(
+                    f"command_id: {cmd['id']}\n"
+                    f"message_id: {payload.get('messageId', '')}\n"
+                    f"content: {payload.get('content', '')}"
+                )
+            return [TextContent(type="text", text="\n\n---\n\n".join(lines))]
+
+        elif name == "send_human_reply":
+            metadata: dict = {}
+            if arguments.get("cost"):
+                metadata["cost"] = arguments["cost"]
+            if arguments.get("model"):
+                metadata["model"] = arguments["model"]
+
+            reply_body: dict = {
+                "content": arguments["content"],
+                "metadata": metadata,
+            }
+            if arguments.get("reply_to_message_id"):
+                reply_body["replyToMessageId"] = arguments["reply_to_message_id"]
+
+            try:
+                reply_resp = await client.post(f"{JARVIS_URL}/v1/comms/replies", json=reply_body)
+                reply_resp.raise_for_status()
+            except httpx.HTTPError as exc:
+                return [TextContent(type="text", text=f"Error sending reply: {exc}")]
+
+            # Ack the source command
+            command_id = arguments.get("command_id")
+            if command_id:
+                try:
+                    await client.post(f"{JARVIS_URL}/v1/commands/{command_id}/ack")
+                except httpx.HTTPError:
+                    pass  # ack failure is non-fatal
+
+            reply_id = reply_resp.json().get("id", "")
+            return [TextContent(type="text", text=f"Reply sent (message: {reply_id})")]
 
         return [TextContent(type="text", text=f"Unknown tool: {name}")]
 
