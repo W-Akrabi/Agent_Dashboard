@@ -1,4 +1,4 @@
-import type { Agent, AgentEvent, InboxItem, SpendData } from '@/types/index';
+import type { Agent, AgentEvent, CommsAgentSummary, CommsMessage, InboxItem, SpendData } from '@/types/index';
 import { supabase } from '@/lib/supabase';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8000';
@@ -140,5 +140,24 @@ export function updateBudget(budget: number) {
   return apiRequest<SpendData>('/v1/spend/budget', {
     method: 'PATCH',
     body: JSON.stringify({ budget }),
+  });
+}
+
+// ── Comms Hub ────────────────────────────────────────────────────────────────
+
+export function getCommsAgents() {
+  return apiRequest<CommsAgentSummary[]>('/v1/comms/agents');
+}
+
+export function getCommsMessages(agentId: string, opts?: { limit?: number; before?: string }) {
+  return apiRequest<CommsMessage[]>(`/v1/comms/agents/${agentId}/messages`, {
+    query: { limit: opts?.limit, before: opts?.before },
+  });
+}
+
+export function sendCommsMessage(agentId: string, payload: { content: string; metadata?: Record<string, unknown> }) {
+  return apiRequest<CommsMessage>(`/v1/comms/agents/${agentId}/messages`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
   });
 }

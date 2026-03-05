@@ -53,3 +53,31 @@ export type NavItem = {
   icon: string;
   badge?: number;
 };
+
+// ── Comms Hub ────────────────────────────────────────────────────────────────
+
+export type CommsMessageStatus = 'queued' | 'delivered' | 'responded';
+export type CommsSender = 'human' | 'agent' | 'system';
+
+export interface CommsAgentSummary {
+  agentId: string;
+  agentName: string;
+  agentStatus: Agent['status'];
+  lastMessage: string | null;
+  lastMessageAt: string | null;
+  queuedCount: number;
+  pendingApprovalCount: number;
+}
+
+export interface CommsMessage {
+  id: string;
+  agentId: string;
+  sender: CommsSender;
+  content: string;
+  messageStatus: CommsMessageStatus;
+  replyToMessageId: string | null;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+  deliveredAt: string | null;
+  respondedAt: string | null;
+}

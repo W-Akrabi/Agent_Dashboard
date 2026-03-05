@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 
-export type InvalidationDomain = 'events' | 'tasks' | 'agents';
+export type InvalidationDomain = 'events' | 'tasks' | 'agents' | 'comms';
 
 type InvalidationContextType = {
   subscribe: (domain: InvalidationDomain, callback: () => void) => () => void;
@@ -20,6 +20,7 @@ export function InvalidationProvider({ children }: { children: React.ReactNode }
       ['events', new Set()],
       ['tasks', new Set()],
       ['agents', new Set()],
+      ['comms', new Set()],
     ])
   );
 
@@ -42,6 +43,7 @@ export function InvalidationProvider({ children }: { children: React.ReactNode }
     emit('events');
     emit('tasks');
     emit('agents');
+    emit('comms');
   };
 
   const userId = user?.id ?? null;
@@ -58,6 +60,7 @@ export function InvalidationProvider({ children }: { children: React.ReactNode }
       .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, () => emit('events'))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => emit('tasks'))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'agents' }, () => emit('agents'))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'comms_messages' }, () => emit('comms'))
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
           if (!wasConnectedRef.current) {
