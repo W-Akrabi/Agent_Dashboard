@@ -41,6 +41,9 @@ from .schemas import (
     InboxItemResponse,
     InboxStatus,
     SpendResponse,
+    VaultSecretCreateRequest,
+    VaultSecretResponse,
+    VaultSecretRevealResponse,
     WebhookEventRequest,
     WebhookEventResponse,
     WorkshopTaskCreateRequest,
@@ -49,8 +52,11 @@ from .schemas import (
     WorkshopTaskUpdateRequest,
 )
 from .security import (
+    decrypt_secret,
+    encrypt_secret,
     generate_agent_token,
     hash_agent_token,
+    mask_secret_value,
     mask_token_hash,
     verify_control_plane_token,
 )
@@ -1589,3 +1595,186 @@ def update_my_workshop_task_status(
     if full_row is None:
         raise HTTPException(status_code=500, detail="Failed to load updated task.")
     return _workshop_task_from_row(full_row)
+
+
+# ============================================================================
+# Key Vault endpoints
+# ============================================================================
+
+def _require_vault_key() -> str:
+    """Return the Fernet encryption key or raise 503 if not configured."""
+    key = settings.vault_encryption_key
+    if not key:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "Key Vault is not configured. "
+                "Set the VAULT_ENCRYPTION_KEY environment variable. "
+                "Generate one with: python -c \"from app.security import generate_vault_key; print(generate_vault_key())\""
+            ),
+        )
+    return key
+
+
+def _vault_secret_from_row(row: dict[str, Any], plaintext: str) -> VaultSecretResponse:
+    return VaultSecretResponse(
+        id=row["id"],
+        name=row["name"],
+        keyName=row["key_name"],
+        preview=mask_secret_value(plaintext),
+        createdAt=row["created_at"],
+        updatedAt=row["updated_at"],
+    )
+
+
+@app.get("/v1/vault/secrets", response_model=list[VaultSecretResponse])
+def list_vault_secrets(
+    auth_user: AuthenticatedUser = Depends(_require_user_auth),
+    connection: Connection[dict[str, Any]] = Depends(get_db),
+) -> list[VaultSecretResponse]:
+    """List all secrets for the workspace. Values are never returned — only masked previews."""
+    vault_key = _require_vault_key()
+    rows = connection.execute(
+        """
+        select id, name, key_name, encrypted_value, created_at, updated_at
+        from vault_secrets
+        where workspace_id = %s::uuid
+        order by name asc
+        """,
+        (auth_user.workspace_id,),
+    ).fetchall()
+
+    result = []
+    for row in rows:
+        try:
+            plaintext = decrypt_secret(bytes(row["encrypted_value"]), vault_key)
+        except Exception:
+            plaintext = ""  # decryption failure → show empty preview
+        result.append(_vault_secret_from_row(row, plaintext))
+    return result
+
+
+@app.post("/v1/vault/secrets", response_model=VaultSecretResponse, status_code=status.HTTP_201_CREATED)
+def create_vault_secret(
+    payload: VaultSecretCreateRequest,
+    auth_user: AuthenticatedUser = Depends(_require_user_auth),
+    connection: Connection[dict[str, Any]] = Depends(get_db),
+) -> VaultSecretResponse:
+    """Store a new secret, encrypted at rest. Plaintext is never persisted."""
+    vault_key = _require_vault_key()
+    key_name = payload.keyName.upper()
+
+    try:
+        ciphertext = encrypt_secret(payload.value, vault_key)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Encryption failed: {exc}") from exc
+
+    try:
+        row = connection.execute(
+            """
+            insert into vault_secrets (workspace_id, name, key_name, encrypted_value, created_by)
+            values (%s::uuid, %s, %s, %s, %s::uuid)
+            returning id, name, key_name, encrypted_value, created_at, updated_at
+            """,
+            (auth_user.workspace_id, payload.name.strip(), key_name, ciphertext, auth_user.id),
+        ).fetchone()
+    except psycopg.errors.UniqueViolation:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"A secret with key name '{key_name}' already exists.",
+        )
+
+    if row is None:
+        raise HTTPException(status_code=500, detail="Failed to create secret.")
+    return _vault_secret_from_row(row, payload.value)
+
+
+@app.get("/v1/vault/secrets/{secret_id}/reveal", response_model=VaultSecretRevealResponse)
+def reveal_vault_secret(
+    secret_id: UUID,
+    auth_user: AuthenticatedUser = Depends(_require_user_auth),
+    connection: Connection[dict[str, Any]] = Depends(get_db),
+) -> VaultSecretRevealResponse:
+    """Return the decrypted plaintext value for a single secret. Use sparingly."""
+    vault_key = _require_vault_key()
+    row = connection.execute(
+        """
+        select id, key_name, encrypted_value
+        from vault_secrets
+        where id = %s::uuid and workspace_id = %s::uuid
+        """,
+        (secret_id, auth_user.workspace_id),
+    ).fetchone()
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Secret not found.")
+
+    try:
+        plaintext = decrypt_secret(bytes(row["encrypted_value"]), vault_key)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Decryption failed — key mismatch?") from exc
+
+    return VaultSecretRevealResponse(id=row["id"], keyName=row["key_name"], value=plaintext)
+
+
+@app.delete(
+    "/v1/vault/secrets/{secret_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
+def delete_vault_secret(
+    secret_id: UUID,
+    auth_user: AuthenticatedUser = Depends(_require_user_auth),
+    connection: Connection[dict[str, Any]] = Depends(get_db),
+) -> Response:
+    deleted = connection.execute(
+        "delete from vault_secrets where id = %s::uuid and workspace_id = %s::uuid returning id",
+        (secret_id, auth_user.workspace_id),
+    ).fetchone()
+    if deleted is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Secret not found.")
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+# ── Agent-facing vault endpoint ───────────────────────────────────────────────
+
+@app.get("/v1/vault/my-secrets/{key_name}")
+def get_agent_secret(
+    key_name: str,
+    x_agent_token: str | None = Header(default=None, alias="X-Agent-Token"),
+    connection: Connection[dict[str, Any]] = Depends(get_db),
+) -> dict[str, str]:
+    """
+    Agent endpoint: retrieve a secret value by key name.
+    Returns the plaintext value so agents can inject it into their environment.
+    """
+    vault_key = _require_vault_key()
+    agent_id = _require_agent_id(connection, x_agent_token)
+
+    # Agents can only access secrets belonging to their workspace
+    agent_row = connection.execute(
+        "select workspace_id from agents where id = %s::uuid",
+        (agent_id,),
+    ).fetchone()
+    if agent_row is None:
+        raise HTTPException(status_code=404, detail="Agent not found.")
+
+    row = connection.execute(
+        """
+        select encrypted_value
+        from vault_secrets
+        where workspace_id = %s::uuid and key_name = %s
+        """,
+        (agent_row["workspace_id"], key_name.upper()),
+    ).fetchone()
+    if row is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Secret '{key_name}' not found.",
+        )
+
+    try:
+        plaintext = decrypt_secret(bytes(row["encrypted_value"]), vault_key)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Decryption failed.") from exc
+
+    return {"key": key_name.upper(), "value": plaintext}
