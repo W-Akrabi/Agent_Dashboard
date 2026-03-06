@@ -1,4 +1,4 @@
-import type { Agent, AgentEvent, CommsAgentSummary, CommsMessage, InboxItem, SpendData, WorkshopTask, WorkshopTaskStatus } from '@/types/index';
+import type { Agent, AgentEvent, CommsAgentSummary, CommsMessage, InboxItem, SpendData, VaultSecret, VaultSecretReveal, WorkshopTask, WorkshopTaskStatus } from '@/types/index';
 import { supabase } from '@/lib/supabase';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8000';
@@ -187,6 +187,29 @@ export function updateWorkshopTask(
 
 export function deleteWorkshopTask(taskId: string) {
   return apiRequest<void>(`/v1/workshop/tasks/${taskId}`, {
+    method: 'DELETE',
+  });
+}
+
+// ── Key Vault ─────────────────────────────────────────────────────────────────
+
+export function getVaultSecrets() {
+  return apiRequest<VaultSecret[]>('/v1/vault/secrets');
+}
+
+export function createVaultSecret(payload: { name: string; keyName: string; value: string }) {
+  return apiRequest<VaultSecret>('/v1/vault/secrets', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function revealVaultSecret(secretId: string) {
+  return apiRequest<VaultSecretReveal>(`/v1/vault/secrets/${secretId}/reveal`);
+}
+
+export function deleteVaultSecret(secretId: string) {
+  return apiRequest<void>(`/v1/vault/secrets/${secretId}`, {
     method: 'DELETE',
   });
 }

@@ -97,3 +97,20 @@ export interface CommsMessage {
   deliveredAt: string | null;
   respondedAt: string | null;
 }
+
+// ── Key Vault ─────────────────────────────────────────────────────────────────
+
+export interface VaultSecret {
+  id: string;
+  name: string;
+  keyName: string;
+  preview: string;   // masked value, e.g. "sk-a••••••••1234"
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface VaultSecretReveal {
+  id: string;
+  keyName: string;
+  value: string;
+}

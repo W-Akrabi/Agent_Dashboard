@@ -27,3 +27,36 @@ def mask_token_hash(token_hash: str | None) -> str:
     if len(token_hash) < 12:
         return token_hash
     return f"sha256:{token_hash[:8]}...{token_hash[-4:]}"
+
+
+# ── Vault encryption (Fernet / AES-128-CBC + HMAC-SHA256) ─────────────────────
+
+def _get_fernet(key: str):  # type: ignore[return]
+    """Return a Fernet instance. Raises ImportError if cryptography is missing."""
+    from cryptography.fernet import Fernet  # type: ignore
+    return Fernet(key.encode() if isinstance(key, str) else key)
+
+
+def encrypt_secret(plaintext: str, key: str) -> bytes:
+    """Encrypt a plaintext string with Fernet and return raw ciphertext bytes."""
+    f = _get_fernet(key)
+    return f.encrypt(plaintext.encode("utf-8"))
+
+
+def decrypt_secret(ciphertext: bytes, key: str) -> str:
+    """Decrypt Fernet ciphertext bytes and return the plaintext string."""
+    f = _get_fernet(key)
+    return f.decrypt(ciphertext).decode("utf-8")
+
+
+def mask_secret_value(plaintext: str) -> str:
+    """Return a redacted preview: first 4 + dots + last 4 chars."""
+    if len(plaintext) <= 8:
+        return "••••••••"
+    return plaintext[:4] + "••••••••" + plaintext[-4:]
+
+
+def generate_vault_key() -> str:
+    """Generate a new random Fernet key (for bootstrapping VAULT_ENCRYPTION_KEY)."""
+    from cryptography.fernet import Fernet  # type: ignore
+    return Fernet.generate_key().decode()

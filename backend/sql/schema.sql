@@ -395,3 +395,33 @@ CREATE POLICY "workspace_select" ON workshop_tasks
   FOR SELECT USING (
     workspace_id = (SELECT workspace_id FROM public.users WHERE id = auth.uid())
   );
+
+-- ============================================================================
+-- vault_secrets
+-- Values are encrypted at rest (AES-128-CBC via Fernet) by the backend.
+-- The encrypted_value column stores raw ciphertext bytes; the backend is the
+-- only layer that ever sees plaintext — the DB and frontend never receive it.
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS vault_secrets (
+  id           uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  workspace_id uuid        NOT NULL,
+  name         text        NOT NULL,   -- Human label: "OpenAI API Key"
+  key_name     text        NOT NULL,   -- Slug identifier: "OPENAI_API_KEY"
+  encrypted_value bytea   NOT NULL,   -- Fernet-encrypted ciphertext
+  created_by   uuid        REFERENCES public.users(id) ON DELETE SET NULL,
+  created_at   timestamptz NOT NULL DEFAULT now(),
+  updated_at   timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (workspace_id, key_name)
+);
+
+CREATE INDEX IF NOT EXISTS idx_vault_secrets_workspace
+  ON vault_secrets(workspace_id);
+
+ALTER TABLE vault_secrets ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "workspace_select" ON vault_secrets;
+CREATE POLICY "workspace_select" ON vault_secrets
+  FOR SELECT USING (
+    workspace_id = (SELECT workspace_id FROM public.users WHERE id = auth.uid())
+  );
