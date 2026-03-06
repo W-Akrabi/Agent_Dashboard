@@ -11,7 +11,6 @@ export const NAV_ITEMS: NavItem[] = [
     { id: 'workshop', label: 'Workshop', icon: '📋' },
     { id: 'spend', label: 'API Spend', icon: '💸' },
     { id: 'comms', label: 'Comms Hub', icon: '💬' },
-    { id: 'sleep', label: 'Sleep Mode', icon: '🌙' },
     { id: 'key-vault', label: 'Key Vault', icon: '🔐' },
 ];
 

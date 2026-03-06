@@ -8,7 +8,6 @@ import {
   Bot,
   KanbanSquare,
   MessageSquare,
-  Moon,
   KeyRound,
   FileText,
   LogOut,
@@ -32,7 +31,6 @@ const navItems: SidebarLinkItem[] = [
   { label: 'Workshop',    href: '/workshop',    icon: <KanbanSquare    className="w-5 h-5 flex-shrink-0" /> },
   { label: 'API Spend',   href: '/spend',       icon: <CreditCard      className="w-5 h-5 flex-shrink-0" /> },
   { label: 'Comms Hub',   href: '/comms',       icon: <MessageSquare   className="w-5 h-5 flex-shrink-0" /> },
-  { label: 'Sleep Mode',  href: '/sleep',       icon: <Moon            className="w-5 h-5 flex-shrink-0" /> },
   { label: 'Key Vault',   href: '/key-vault',   icon: <KeyRound        className="w-5 h-5 flex-shrink-0" /> },
   { label: 'Agents',      href: '/agents',      icon: <Bot             className="w-5 h-5 flex-shrink-0" /> },
 ];

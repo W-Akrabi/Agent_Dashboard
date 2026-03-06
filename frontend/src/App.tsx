@@ -23,7 +23,6 @@ import { AuthProvider } from './contexts/AuthContext';
 import { InvalidationProvider } from './contexts/InvalidationContext';
 import { Workshop } from './views/Workshop';
 import { CommsHub } from './views/CommsHub';
-import { SleepMode } from './views/SleepMode';
 import { KeyVault } from './views/KeyVault';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -73,7 +72,6 @@ export default function App() {
               <Route path="/agents/:id" element={<AgentDetail />} />
               <Route path="/workshop" element={<Workshop />} />
               <Route path="/comms" element={<CommsHub />} />
-              <Route path="/sleep" element={<SleepMode />} />
               <Route path="/key-vault" element={<KeyVault />} />
             </Route>
           </Route>
