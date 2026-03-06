@@ -43,6 +43,10 @@ from .schemas import (
     SpendResponse,
     WebhookEventRequest,
     WebhookEventResponse,
+    WorkshopTaskCreateRequest,
+    WorkshopTaskResponse,
+    WorkshopTaskStatusUpdateRequest,
+    WorkshopTaskUpdateRequest,
 )
 from .security import (
     generate_agent_token,
@@ -1369,3 +1373,219 @@ def post_comms_reply(
             )
 
     return _comms_message_from_row(msg_row)
+
+
+# ============================================================================
+# Workshop endpoints
+# ============================================================================
+
+def _workshop_task_from_row(row: dict[str, Any]) -> WorkshopTaskResponse:
+    return WorkshopTaskResponse(
+        id=row["id"],
+        workspaceId=row["workspace_id"],
+        agentId=row.get("agent_id"),
+        agentName=row.get("agent_name"),
+        title=row["title"],
+        description=row.get("description"),
+        status=row["status"],
+        createdAt=row["created_at"],
+        updatedAt=row["updated_at"],
+    )
+
+
+_WORKSHOP_SELECT = """
+    select
+      wt.id,
+      wt.workspace_id,
+      wt.agent_id,
+      a.name as agent_name,
+      wt.title,
+      wt.description,
+      wt.status,
+      wt.created_at,
+      wt.updated_at
+    from workshop_tasks wt
+    left join agents a on a.id = wt.agent_id
+"""
+
+
+@app.get("/v1/workshop/tasks", response_model=list[WorkshopTaskResponse])
+def list_workshop_tasks(
+    auth_user: AuthenticatedUser = Depends(_require_user_auth),
+    connection: Connection[dict[str, Any]] = Depends(get_db),
+) -> list[WorkshopTaskResponse]:
+    rows = connection.execute(
+        _WORKSHOP_SELECT + """
+        where wt.workspace_id = %s::uuid
+        order by
+          case wt.status when 'backlog' then 0 when 'in_progress' then 1 else 2 end,
+          wt.created_at asc
+        """,
+        (auth_user.workspace_id,),
+    ).fetchall()
+    return [_workshop_task_from_row(row) for row in rows]
+
+
+@app.post("/v1/workshop/tasks", response_model=WorkshopTaskResponse, status_code=status.HTTP_201_CREATED)
+def create_workshop_task(
+    payload: WorkshopTaskCreateRequest,
+    auth_user: AuthenticatedUser = Depends(_require_user_auth),
+    connection: Connection[dict[str, Any]] = Depends(get_db),
+) -> WorkshopTaskResponse:
+    if payload.agentId:
+        agent_check = connection.execute(
+            "select 1 from agents where id = %s::uuid and workspace_id = %s::uuid",
+            (payload.agentId, auth_user.workspace_id),
+        ).fetchone()
+        if agent_check is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found.")
+
+    row = connection.execute(
+        """
+        insert into workshop_tasks (workspace_id, agent_id, created_by, title, description, status)
+        values (%s::uuid, %s, %s::uuid, %s, %s, 'backlog')
+        returning id
+        """,
+        (auth_user.workspace_id, payload.agentId, auth_user.id, payload.title.strip(), payload.description),
+    ).fetchone()
+    if row is None:
+        raise HTTPException(status_code=500, detail="Failed to create task.")
+
+    full_row = connection.execute(
+        _WORKSHOP_SELECT + " where wt.id = %s::uuid",
+        (row["id"],),
+    ).fetchone()
+    if full_row is None:
+        raise HTTPException(status_code=500, detail="Failed to load created task.")
+    return _workshop_task_from_row(full_row)
+
+
+@app.patch("/v1/workshop/tasks/{task_id}", response_model=WorkshopTaskResponse)
+def update_workshop_task(
+    task_id: UUID,
+    payload: WorkshopTaskUpdateRequest,
+    auth_user: AuthenticatedUser = Depends(_require_user_auth),
+    connection: Connection[dict[str, Any]] = Depends(get_db),
+) -> WorkshopTaskResponse:
+    existing = connection.execute(
+        "select id, title, description, status, agent_id from workshop_tasks where id = %s::uuid and workspace_id = %s::uuid",
+        (task_id, auth_user.workspace_id),
+    ).fetchone()
+    if existing is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found.")
+
+    # Resolve new agent_id: None in payload means "unset field", so we need a sentinel
+    new_agent_id = existing["agent_id"]
+    if "agentId" in payload.model_fields_set:
+        if payload.agentId is not None:
+            agent_check = connection.execute(
+                "select 1 from agents where id = %s::uuid and workspace_id = %s::uuid",
+                (payload.agentId, auth_user.workspace_id),
+            ).fetchone()
+            if agent_check is None:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found.")
+        new_agent_id = payload.agentId
+
+    connection.execute(
+        """
+        update workshop_tasks
+        set
+          title = %s,
+          description = %s,
+          status = %s,
+          agent_id = %s,
+          updated_at = now()
+        where id = %s::uuid and workspace_id = %s::uuid
+        """,
+        (
+            payload.title.strip() if payload.title else existing["title"],
+            payload.description if payload.description is not None else existing["description"],
+            payload.status or existing["status"],
+            new_agent_id,
+            task_id,
+            auth_user.workspace_id,
+        ),
+    )
+
+    full_row = connection.execute(
+        _WORKSHOP_SELECT + " where wt.id = %s::uuid",
+        (task_id,),
+    ).fetchone()
+    if full_row is None:
+        raise HTTPException(status_code=500, detail="Failed to load updated task.")
+    return _workshop_task_from_row(full_row)
+
+
+@app.delete(
+    "/v1/workshop/tasks/{task_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
+def delete_workshop_task(
+    task_id: UUID,
+    auth_user: AuthenticatedUser = Depends(_require_user_auth),
+    connection: Connection[dict[str, Any]] = Depends(get_db),
+) -> Response:
+    deleted = connection.execute(
+        "delete from workshop_tasks where id = %s::uuid and workspace_id = %s::uuid returning id",
+        (task_id, auth_user.workspace_id),
+    ).fetchone()
+    if deleted is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found.")
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+# ── Agent-facing workshop endpoints ──────────────────────────────────────────
+
+@app.get("/v1/workshop/my-tasks", response_model=list[WorkshopTaskResponse])
+def get_my_workshop_tasks(
+    x_agent_token: str | None = Header(default=None, alias="X-Agent-Token"),
+    connection: Connection[dict[str, Any]] = Depends(get_db),
+) -> list[WorkshopTaskResponse]:
+    """Return backlog + in-progress tasks assigned to this agent, prioritised by status."""
+    agent_id = _require_agent_id(connection, x_agent_token)
+    rows = connection.execute(
+        _WORKSHOP_SELECT + """
+        where wt.agent_id = %s::uuid
+          and wt.status in ('backlog', 'in_progress')
+        order by
+          case wt.status when 'in_progress' then 0 else 1 end,
+          wt.created_at asc
+        """,
+        (agent_id,),
+    ).fetchall()
+    return [_workshop_task_from_row(row) for row in rows]
+
+
+@app.patch("/v1/workshop/my-tasks/{task_id}/status", response_model=WorkshopTaskResponse)
+def update_my_workshop_task_status(
+    task_id: UUID,
+    payload: WorkshopTaskStatusUpdateRequest,
+    x_agent_token: str | None = Header(default=None, alias="X-Agent-Token"),
+    connection: Connection[dict[str, Any]] = Depends(get_db),
+) -> WorkshopTaskResponse:
+    """Allow an agent to move a task assigned to it through statuses."""
+    agent_id = _require_agent_id(connection, x_agent_token)
+
+    updated = connection.execute(
+        """
+        update workshop_tasks
+        set status = %s, updated_at = now()
+        where id = %s::uuid and agent_id = %s::uuid
+        returning id
+        """,
+        (payload.status, task_id, agent_id),
+    ).fetchone()
+    if updated is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Task not found or not assigned to this agent.",
+        )
+
+    full_row = connection.execute(
+        _WORKSHOP_SELECT + " where wt.id = %s::uuid",
+        (task_id,),
+    ).fetchone()
+    if full_row is None:
+        raise HTTPException(status_code=500, detail="Failed to load updated task.")
+    return _workshop_task_from_row(full_row)

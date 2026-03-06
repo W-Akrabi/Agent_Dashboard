@@ -54,6 +54,22 @@ export type NavItem = {
   badge?: number;
 };
 
+// ── Workshop ──────────────────────────────────────────────────────────────────
+
+export type WorkshopTaskStatus = 'backlog' | 'in_progress' | 'done';
+
+export interface WorkshopTask {
+  id: string;
+  workspaceId: string;
+  agentId: string | null;
+  agentName: string | null;
+  title: string;
+  description: string | null;
+  status: WorkshopTaskStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ── Comms Hub ────────────────────────────────────────────────────────────────
 
 export type CommsMessageStatus = 'queued' | 'delivered' | 'responded';

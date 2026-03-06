@@ -316,23 +316,49 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_commands_one_per_source_message
   WHERE source_message_id IS NOT NULL AND kind = 'human_message';
 
 -- ============================================================================
+-- workshop_tasks
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS workshop_tasks (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  workspace_id uuid NOT NULL,
+  agent_id uuid REFERENCES agents(id) ON DELETE SET NULL,
+  created_by uuid REFERENCES public.users(id) ON DELETE SET NULL,
+  title text NOT NULL,
+  description text,
+  status text NOT NULL DEFAULT 'backlog'
+    CHECK (status IN ('backlog', 'in_progress', 'done')),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_workshop_tasks_workspace_status
+  ON workshop_tasks(workspace_id, status, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_workshop_tasks_agent
+  ON workshop_tasks(agent_id, status)
+  WHERE agent_id IS NOT NULL;
+
+-- ============================================================================
 -- Realtime configuration
 -- ============================================================================
 
-ALTER TABLE events REPLICA IDENTITY FULL;
-ALTER TABLE tasks  REPLICA IDENTITY FULL;
-ALTER TABLE agents REPLICA IDENTITY FULL;
-ALTER TABLE comms_messages REPLICA IDENTITY FULL;
+ALTER TABLE events          REPLICA IDENTITY FULL;
+ALTER TABLE tasks           REPLICA IDENTITY FULL;
+ALTER TABLE agents          REPLICA IDENTITY FULL;
+ALTER TABLE comms_messages  REPLICA IDENTITY FULL;
+ALTER TABLE workshop_tasks  REPLICA IDENTITY FULL;
 
 -- ============================================================================
 -- Row Level Security (RLS)
 -- ============================================================================
 
-ALTER TABLE agents         ENABLE ROW LEVEL SECURITY;
-ALTER TABLE events         ENABLE ROW LEVEL SECURITY;
-ALTER TABLE tasks          ENABLE ROW LEVEL SECURITY;
-ALTER TABLE commands       ENABLE ROW LEVEL SECURITY;
-ALTER TABLE comms_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE agents          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE events          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tasks           ENABLE ROW LEVEL SECURITY;
+ALTER TABLE commands        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE comms_messages  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE workshop_tasks  ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "workspace_select" ON agents;
 CREATE POLICY "workspace_select" ON agents
@@ -360,6 +386,12 @@ CREATE POLICY "workspace_select" ON commands
 
 DROP POLICY IF EXISTS "workspace_select" ON comms_messages;
 CREATE POLICY "workspace_select" ON comms_messages
+  FOR SELECT USING (
+    workspace_id = (SELECT workspace_id FROM public.users WHERE id = auth.uid())
+  );
+
+DROP POLICY IF EXISTS "workspace_select" ON workshop_tasks;
+CREATE POLICY "workspace_select" ON workshop_tasks
   FOR SELECT USING (
     workspace_id = (SELECT workspace_id FROM public.users WHERE id = auth.uid())
   );

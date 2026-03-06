@@ -139,6 +139,44 @@ async def list_tools() -> list[Tool]:
             },
         ),
         Tool(
+            name="get_workshop_tasks",
+            description=(
+                "Fetch tasks assigned to this agent from the Workshop. "
+                "Returns backlog and in-progress tasks in priority order (in-progress first). "
+                "Use this at the start of a session to discover what work is queued for you. "
+                "After fetching, call update_workshop_task_status to move tasks through the pipeline."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {},
+                "required": [],
+            },
+        ),
+        Tool(
+            name="update_workshop_task_status",
+            description=(
+                "Update the status of a Workshop task assigned to this agent. "
+                "Call this to move a task from 'backlog' → 'in_progress' when starting, "
+                "and from 'in_progress' → 'done' when complete. "
+                "The task_id comes from get_workshop_tasks."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "task_id": {
+                        "type": "string",
+                        "description": "UUID of the workshop task to update",
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["backlog", "in_progress", "done"],
+                        "description": "New status for the task",
+                    },
+                },
+                "required": ["task_id", "status"],
+            },
+        ),
+        Tool(
             name="send_human_reply",
             description=(
                 "Send a reply to a human message in the Jarvis Comms Hub. "
@@ -243,6 +281,41 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 type="text",
                 text=f"Decision: timed out after {timeout_minutes} minute(s). No response from dashboard. Treat as rejected and abort."
             )]
+
+        elif name == "get_workshop_tasks":
+            try:
+                resp = await client.get(f"{JARVIS_URL}/v1/workshop/my-tasks")
+                resp.raise_for_status()
+            except httpx.HTTPError as exc:
+                return [TextContent(type="text", text=f"Error fetching workshop tasks: {exc}")]
+
+            tasks = resp.json()
+            if not tasks:
+                return [TextContent(type="text", text="No tasks assigned to this agent.")]
+
+            lines = []
+            for task in tasks:
+                desc = f"\n  description: {task['description']}" if task.get("description") else ""
+                lines.append(
+                    f"task_id: {task['id']}\n"
+                    f"  title: {task['title']}{desc}\n"
+                    f"  status: {task['status']}"
+                )
+            return [TextContent(type="text", text="\n\n".join(lines))]
+
+        elif name == "update_workshop_task_status":
+            task_id = arguments["task_id"]
+            new_status = arguments["status"]
+            try:
+                resp = await client.patch(
+                    f"{JARVIS_URL}/v1/workshop/my-tasks/{task_id}/status",
+                    json={"status": new_status},
+                )
+                resp.raise_for_status()
+            except httpx.HTTPError as exc:
+                return [TextContent(type="text", text=f"Error updating task: {exc}")]
+            task = resp.json()
+            return [TextContent(type="text", text=f"Task '{task['title']}' moved to {new_status}.")]
 
         elif name == "fetch_human_messages":
             try:

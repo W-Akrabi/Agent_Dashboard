@@ -1,4 +1,4 @@
-import type { Agent, AgentEvent, CommsAgentSummary, CommsMessage, InboxItem, SpendData } from '@/types/index';
+import type { Agent, AgentEvent, CommsAgentSummary, CommsMessage, InboxItem, SpendData, WorkshopTask, WorkshopTaskStatus } from '@/types/index';
 import { supabase } from '@/lib/supabase';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8000';
@@ -159,5 +159,34 @@ export function sendCommsMessage(agentId: string, payload: { content: string; me
   return apiRequest<CommsMessage>(`/v1/comms/agents/${agentId}/messages`, {
     method: 'POST',
     body: JSON.stringify(payload),
+  });
+}
+
+// ── Workshop ──────────────────────────────────────────────────────────────────
+
+export function getWorkshopTasks() {
+  return apiRequest<WorkshopTask[]>('/v1/workshop/tasks');
+}
+
+export function createWorkshopTask(payload: { title: string; description?: string; agentId?: string | null }) {
+  return apiRequest<WorkshopTask>('/v1/workshop/tasks', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateWorkshopTask(
+  taskId: string,
+  payload: { title?: string; description?: string | null; status?: WorkshopTaskStatus; agentId?: string | null },
+) {
+  return apiRequest<WorkshopTask>(`/v1/workshop/tasks/${taskId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteWorkshopTask(taskId: string) {
+  return apiRequest<void>(`/v1/workshop/tasks/${taskId}`, {
+    method: 'DELETE',
   });
 }

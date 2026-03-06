@@ -13,6 +13,7 @@ InboxStatus = Literal["pending", "approved", "rejected"]
 CommandStatus = Literal["pending", "acked"]
 CommsMessageStatus = Literal["queued", "delivered", "responded"]
 CommsSender = Literal["human", "agent", "system"]
+WorkshopTaskStatus = Literal["backlog", "in_progress", "done"]
 
 
 class AgentResponse(BaseModel):
@@ -140,6 +141,38 @@ class SpendResponse(BaseModel):
 
 class BudgetUpdateRequest(BaseModel):
     budget: float = Field(gt=0)
+
+
+# ── Workshop ──────────────────────────────────────────────────────────────────
+
+class WorkshopTaskResponse(BaseModel):
+    id: UUID
+    workspaceId: UUID
+    agentId: UUID | None = None
+    agentName: str | None = None
+    title: str
+    description: str | None = None
+    status: WorkshopTaskStatus
+    createdAt: datetime
+    updatedAt: datetime
+
+
+class WorkshopTaskCreateRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=500)
+    description: str | None = Field(default=None, max_length=2000)
+    agentId: UUID | None = None
+
+
+class WorkshopTaskUpdateRequest(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=500)
+    description: str | None = None
+    status: WorkshopTaskStatus | None = None
+    agentId: UUID | None = None
+
+
+class WorkshopTaskStatusUpdateRequest(BaseModel):
+    """Used by agents to update their own task status."""
+    status: WorkshopTaskStatus
 
 
 class WebhookEventRequest(BaseModel):

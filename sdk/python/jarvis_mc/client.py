@@ -234,6 +234,51 @@ class JarvisAgent:
             body["replyToMessageId"] = reply_to_message_id
         return self._post("/v1/comms/replies", body)
 
+    # ── Workshop helpers ──────────────────────────────────────────────────────
+
+    def get_my_tasks(self) -> list[dict[str, Any]]:
+        """
+        Return tasks assigned to this agent that are in 'backlog' or 'in_progress'.
+
+        Tasks are ordered so in-progress items come first. Each task contains:
+            - id: UUID of the task
+            - title: what needs to be done
+            - description: optional detailed instructions
+            - status: 'backlog' or 'in_progress'
+
+        Example::
+            for task in agent.get_my_tasks():
+                print(task["title"])
+                agent.start_task(task["id"])
+        """
+        return self._get("/v1/workshop/my-tasks")
+
+    def update_task_status(self, task_id: str, status: str) -> dict[str, Any]:
+        """
+        Update the status of a task assigned to this agent.
+
+        Parameters
+        ----------
+        task_id:
+            UUID of the workshop task.
+        status:
+            One of: 'backlog', 'in_progress', 'done'.
+
+        Example::
+            agent.update_task_status(task["id"], "in_progress")
+            # ... do the work ...
+            agent.update_task_status(task["id"], "done")
+        """
+        return self._post(f"/v1/workshop/my-tasks/{task_id}/status", {"status": status})
+
+    def start_task(self, task_id: str) -> dict[str, Any]:
+        """Move a task to 'in_progress'. Shorthand for update_task_status(task_id, 'in_progress')."""
+        return self.update_task_status(task_id, "in_progress")
+
+    def complete_task(self, task_id: str) -> dict[str, Any]:
+        """Mark a task as 'done'. Shorthand for update_task_status(task_id, 'done')."""
+        return self.update_task_status(task_id, "done")
+
     def respond_to_human_command(
         self,
         command: dict[str, Any],
