@@ -58,6 +58,7 @@ class Settings:
     cors_origin_regex: str
     control_plane_token: str
     supabase_jwt_secret: str
+    vault_encryption_key: str | None  # Fernet key (url-safe base64, 32 bytes). None = vault disabled.
 
 
 @lru_cache(maxsize=1)
@@ -77,4 +78,5 @@ def get_settings() -> Settings:
         ),
         control_plane_token=_require_env("CONTROL_PLANE_TOKEN"),
         supabase_jwt_secret=_require_env("SUPABASE_JWT_SECRET"),
+        vault_encryption_key=os.getenv("VAULT_ENCRYPTION_KEY"),
     )
