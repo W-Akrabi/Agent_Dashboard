@@ -186,3 +186,28 @@ class WebhookEventRequest(BaseModel):
 class WebhookEventResponse(BaseModel):
     ok: bool = True
     eventId: UUID
+
+
+# ── Key Vault ─────────────────────────────────────────────────────────────────
+
+class VaultSecretResponse(BaseModel):
+    """Safe public representation — never includes the plaintext value."""
+    id: UUID
+    name: str
+    keyName: str
+    preview: str    # e.g. "sk-a••••••••1234" — masked plaintext
+    createdAt: datetime
+    updatedAt: datetime
+
+
+class VaultSecretCreateRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    keyName: str = Field(min_length=1, max_length=100, pattern=r"^[A-Za-z][A-Za-z0-9_]*$")
+    value: str = Field(min_length=1, max_length=10000)
+
+
+class VaultSecretRevealResponse(BaseModel):
+    """Returned only from the /reveal endpoint — contains the decrypted value."""
+    id: UUID
+    keyName: str
+    value: str
