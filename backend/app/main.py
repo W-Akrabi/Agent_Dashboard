@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 import ssl
+from collections import defaultdict
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime
@@ -16,7 +18,7 @@ import jwt
 import psycopg
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from jwt import PyJWKClient, PyJWKClientError
 from psycopg import Connection
 from psycopg.types.json import Jsonb
@@ -65,6 +67,24 @@ settings = get_settings()
 _jwks_clients: dict[str, PyJWKClient] = {}
 logger = logging.getLogger(__name__)
 _warned_missing_cryptography = False
+
+# ── SSE broadcaster ───────────────────────────────────────────────────────────
+# Maps channel name → list of per-connection queues.
+# Sync request handlers call _sse_publish(); async SSE generators await queue.get().
+_sse_queues: dict[str, list[asyncio.Queue[str]]] = defaultdict(list)
+_sse_loop: asyncio.AbstractEventLoop | None = None
+
+
+def _sse_publish(channel: str, data: str = "update") -> None:
+    """Notify all SSE listeners on *channel* from a sync request handler."""
+    if _sse_loop is None:
+        return
+    for q in list(_sse_queues.get(channel, [])):
+        try:
+            _sse_loop.call_soon_threadsafe(q.put_nowait, data)
+        except Exception:
+            pass
+
 
 try:
     import cryptography as _cryptography  # type: ignore
@@ -378,6 +398,17 @@ def _require_user_auth(
     )
 
 
+def _require_user_auth_sse(
+    token: str | None = Query(default=None),
+    connection: Connection[dict[str, Any]] = Depends(get_db),
+) -> AuthenticatedUser:
+    """Like _require_user_auth but reads the JWT from a ?token= query param (for EventSource)."""
+    return _require_user_auth(
+        authorization=f"Bearer {token}" if token else None,
+        connection=connection,
+    )
+
+
 def _require_control_plane_auth(
     x_control_plane_token: str | None = Header(default=None, alias="X-Control-Plane-Token"),
 ) -> None:
@@ -421,11 +452,14 @@ def _fetch_agent(
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    global _sse_loop
+    _sse_loop = asyncio.get_running_loop()
     init_db_pool(settings)
     try:
         yield
     finally:
         close_db_pool()
+        _sse_loop = None
 
 
 app = FastAPI(title="Jarvis Mission Control API", version="1.0.0", lifespan=lifespan)
@@ -677,7 +711,33 @@ def ingest_event(
     if agent_row is None:
         raise HTTPException(status_code=404, detail="Agent not found.")
     agent_workspace_id = agent_row["workspace_id"]
-    
+
+    # Enforce budget cap: reject events with cost if workspace is at or over budget
+    if payload.cost and payload.cost > 0:
+        budget_row = connection.execute(
+            "select monthly_budget from users where workspace_id = %s::uuid limit 1",
+            (agent_workspace_id,),
+        ).fetchone()
+        if budget_row is not None:
+            monthly_budget = float(budget_row["monthly_budget"] or 0)
+            if monthly_budget > 0:
+                monthly_spend_row = connection.execute(
+                    """
+                    select coalesce(sum(e.cost), 0)::float8 as monthly
+                    from events e
+                    join agents a on a.id = e.agent_id
+                    where a.workspace_id = %s::uuid
+                      and e.created_at >= date_trunc('month', now())
+                    """,
+                    (agent_workspace_id,),
+                ).fetchone()
+                monthly_spend = float((monthly_spend_row or {}).get("monthly") or 0)
+                if monthly_spend >= monthly_budget:
+                    raise HTTPException(
+                        status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                        detail="Budget cap reached. No further spend is permitted until the workspace owner resets the budget.",
+                    )
+
     proposed_action = payload.proposedAction if payload.requiresApproval else None
 
     event_row = connection.execute(
@@ -750,6 +810,11 @@ def ingest_event(
             """,
             (agent_id,),
         )
+
+    _sse_publish(f"events:{agent_workspace_id}", str(agent_id))
+    _sse_publish(f"spend:{agent_workspace_id}")
+    if payload.requiresApproval:
+        _sse_publish(f"inbox:{agent_workspace_id}")
 
     return EventIngestResponse(event=_event_from_row(event_row), taskId=task_id)
 
@@ -1054,6 +1119,7 @@ def update_budget(
     ).fetchone()
     if updated is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
+    _sse_publish(f"spend:{auth_user.workspace_id}")
     return get_spend(auth_user=auth_user, connection=connection)
 
 
@@ -1306,6 +1372,7 @@ def send_comms_message(
             ),
         )
 
+    _sse_publish(f"comms:{auth_user.workspace_id}")
     return _comms_message_from_row(msg_row)
 
 
@@ -1378,7 +1445,84 @@ def post_comms_reply(
                 (payload.replyToMessageId, agent_id),
             )
 
+    _sse_publish(f"comms:{workspace_id}")
     return _comms_message_from_row(msg_row)
+
+
+# ============================================================================
+# SSE streaming endpoints
+# ============================================================================
+
+_SSE_HEADERS = {
+    "Cache-Control": "no-cache",
+    "X-Accel-Buffering": "no",
+    "Connection": "keep-alive",
+}
+
+
+async def _sse_generator(channel: str, filter_data: str | None = None):
+    """Yield SSE frames for *channel*; sends a keepalive comment every 30 s."""
+    q: asyncio.Queue[str] = asyncio.Queue()
+    _sse_queues[channel].append(q)
+    try:
+        yield "data: connected\n\n"
+        while True:
+            try:
+                data = await asyncio.wait_for(q.get(), timeout=30.0)
+                if filter_data is None or data == filter_data:
+                    yield f"data: {data}\n\n"
+            except asyncio.TimeoutError:
+                yield ": keepalive\n\n"
+    finally:
+        try:
+            _sse_queues[channel].remove(q)
+        except ValueError:
+            pass
+
+
+@app.get("/v1/stream/events")
+async def stream_events(
+    agent_id: str | None = Query(default=None),
+    auth_user: AuthenticatedUser = Depends(_require_user_auth_sse),
+) -> StreamingResponse:
+    return StreamingResponse(
+        _sse_generator(f"events:{auth_user.workspace_id}", filter_data=agent_id),
+        media_type="text/event-stream",
+        headers=_SSE_HEADERS,
+    )
+
+
+@app.get("/v1/stream/comms")
+async def stream_comms(
+    auth_user: AuthenticatedUser = Depends(_require_user_auth_sse),
+) -> StreamingResponse:
+    return StreamingResponse(
+        _sse_generator(f"comms:{auth_user.workspace_id}"),
+        media_type="text/event-stream",
+        headers=_SSE_HEADERS,
+    )
+
+
+@app.get("/v1/stream/inbox")
+async def stream_inbox(
+    auth_user: AuthenticatedUser = Depends(_require_user_auth_sse),
+) -> StreamingResponse:
+    return StreamingResponse(
+        _sse_generator(f"inbox:{auth_user.workspace_id}"),
+        media_type="text/event-stream",
+        headers=_SSE_HEADERS,
+    )
+
+
+@app.get("/v1/stream/spend")
+async def stream_spend(
+    auth_user: AuthenticatedUser = Depends(_require_user_auth_sse),
+) -> StreamingResponse:
+    return StreamingResponse(
+        _sse_generator(f"spend:{auth_user.workspace_id}"),
+        media_type="text/event-stream",
+        headers=_SSE_HEADERS,
+    )
 
 
 # ============================================================================

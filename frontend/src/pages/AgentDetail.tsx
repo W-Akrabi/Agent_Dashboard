@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { supabase } from '@/lib/supabase';
 import {
   Bot,
   Play,
@@ -84,6 +85,35 @@ export default function AgentDetail() {
       unsubAgents();
     };
   }, [subscribe, loadData]);
+
+  // SSE — primary real-time channel; polling via InvalidationContext is the fallback
+  useEffect(() => {
+    if (!id) return;
+    const apiBase = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8000';
+    let es: EventSource | null = null;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let mounted = true;
+
+    const connect = async () => {
+      if (!mounted) return;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token || !mounted) return;
+      es = new EventSource(`${apiBase}/v1/stream/events?agent_id=${id}&token=${session.access_token}`);
+      es.onmessage = () => { void loadData(); };
+      es.onerror = () => {
+        es?.close();
+        es = null;
+        if (mounted) retryTimer = setTimeout(() => { void connect(); }, 5000);
+      };
+    };
+
+    void connect();
+    return () => {
+      mounted = false;
+      es?.close();
+      if (retryTimer) clearTimeout(retryTimer);
+    };
+  }, [id, loadData]);
 
   if (isLoading) {
     return (

@@ -2,7 +2,10 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getCommsAgents, getCommsMessages, sendCommsMessage } from '@/lib/api';
 import { useInvalidation } from '@/contexts/InvalidationContext';
+import { supabase } from '@/lib/supabase';
 import type { CommsAgentSummary, CommsMessage } from '@/types';
+
+const _API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8000';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -195,6 +198,33 @@ export const CommsHub: React.FC = () => {
     return subscribe('agents', () => { void fetchAgents(); });
   }, [subscribe, fetchAgents]);
 
+  // SSE — primary real-time channel; polling via InvalidationContext is the fallback
+  useEffect(() => {
+    let es: EventSource | null = null;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let mounted = true;
+
+    const connect = async () => {
+      if (!mounted) return;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token || !mounted) return;
+      es = new EventSource(`${_API_BASE}/v1/stream/comms?token=${session.access_token}`);
+      es.onmessage = () => { void fetchAgents(); };
+      es.onerror = () => {
+        es?.close();
+        es = null;
+        if (mounted) retryTimer = setTimeout(() => { void connect(); }, 5000);
+      };
+    };
+
+    void connect();
+    return () => {
+      mounted = false;
+      es?.close();
+      if (retryTimer) clearTimeout(retryTimer);
+    };
+  }, [fetchAgents]);
+
   // ── fetch messages for selected agent ─────────────────────────────────────
 
   const fetchMessages = useCallback(async (agentId: string) => {
@@ -219,6 +249,34 @@ export const CommsHub: React.FC = () => {
     if (!selectedId) return;
     return subscribe('comms', () => { void fetchMessages(selectedId); });
   }, [selectedId, subscribe, fetchMessages]);
+
+  // SSE for message thread of selected agent
+  useEffect(() => {
+    if (!selectedId) return;
+    let es: EventSource | null = null;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let mounted = true;
+
+    const connect = async () => {
+      if (!mounted) return;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token || !mounted) return;
+      es = new EventSource(`${_API_BASE}/v1/stream/comms?token=${session.access_token}`);
+      es.onmessage = () => { void fetchMessages(selectedId); };
+      es.onerror = () => {
+        es?.close();
+        es = null;
+        if (mounted) retryTimer = setTimeout(() => { void connect(); }, 5000);
+      };
+    };
+
+    void connect();
+    return () => {
+      mounted = false;
+      es?.close();
+      if (retryTimer) clearTimeout(retryTimer);
+    };
+  }, [selectedId, fetchMessages]);
 
   // ── auto-scroll ────────────────────────────────────────────────────────────
 

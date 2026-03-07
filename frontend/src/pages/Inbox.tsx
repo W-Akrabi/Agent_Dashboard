@@ -4,6 +4,9 @@ import { SuccessIcon } from '@/components/ui/animated-state-icons';
 import { decideInboxItem, getInbox } from '@/lib/api';
 import type { InboxItem } from '@/types/index';
 import { useInvalidation } from '@/contexts/InvalidationContext';
+import { supabase } from '@/lib/supabase';
+
+const _API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8000';
 
 type FilterType = 'all' | 'pending' | 'approved' | 'rejected';
 
@@ -36,6 +39,33 @@ export default function Inbox() {
   useEffect(() => {
     return subscribe('tasks', loadInbox);
   }, [subscribe]);
+
+  // SSE — primary real-time channel; polling via InvalidationContext is the fallback
+  useEffect(() => {
+    let es: EventSource | null = null;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let mounted = true;
+
+    const connect = async () => {
+      if (!mounted) return;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token || !mounted) return;
+      es = new EventSource(`${_API_BASE}/v1/stream/inbox?token=${session.access_token}`);
+      es.onmessage = () => { void loadInbox(); };
+      es.onerror = () => {
+        es?.close();
+        es = null;
+        if (mounted) retryTimer = setTimeout(() => { void connect(); }, 5000);
+      };
+    };
+
+    void connect();
+    return () => {
+      mounted = false;
+      es?.close();
+      if (retryTimer) clearTimeout(retryTimer);
+    };
+  }, [loadInbox]);
 
   const filteredItems = useMemo(
     () => items.filter((item) => (filter === 'all' ? true : item.status === filter)),
