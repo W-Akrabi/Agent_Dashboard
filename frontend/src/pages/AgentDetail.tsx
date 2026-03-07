@@ -257,8 +257,8 @@ export default function AgentDetail() {
         <div className="data-card p-5">
           <div className="flex items-center justify-between mb-3">
             <span className="text-[#A7ACBF] text-sm">Total Spend</span>
-            <div className="w-8 h-8 rounded-lg bg-[#4F46E5]/20 flex items-center justify-center">
-              <DollarSign className="w-4 h-4 text-[#4F46E5]" />
+            <div className="w-8 h-8 rounded-lg bg-brand/20 flex items-center justify-center">
+              <DollarSign className="w-4 h-4 text-brand" />
             </div>
           </div>
           <p className="text-2xl font-bold">${agent.totalSpend.toFixed(2)}</p>
@@ -267,8 +267,8 @@ export default function AgentDetail() {
         <div className="data-card p-5">
           <div className="flex items-center justify-between mb-3">
             <span className="text-[#A7ACBF] text-sm">Events</span>
-            <div className="w-8 h-8 rounded-lg bg-[#4F46E5]/20 flex items-center justify-center">
-              <Activity className="w-4 h-4 text-[#4F46E5]" />
+            <div className="w-8 h-8 rounded-lg bg-brand/20 flex items-center justify-center">
+              <Activity className="w-4 h-4 text-brand" />
             </div>
           </div>
           <p className="text-2xl font-bold">{agent.eventsCount}</p>
@@ -277,8 +277,8 @@ export default function AgentDetail() {
         <div className="data-card p-5">
           <div className="flex items-center justify-between mb-3">
             <span className="text-[#A7ACBF] text-sm">Last Seen</span>
-            <div className="w-8 h-8 rounded-lg bg-[#4F46E5]/20 flex items-center justify-center">
-              <Clock className="w-4 h-4 text-[#4F46E5]" />
+            <div className="w-8 h-8 rounded-lg bg-brand/20 flex items-center justify-center">
+              <Clock className="w-4 h-4 text-brand" />
             </div>
           </div>
           <p className="text-lg font-bold">
@@ -289,8 +289,8 @@ export default function AgentDetail() {
         <div className="data-card p-5">
           <div className="flex items-center justify-between mb-3">
             <span className="text-[#A7ACBF] text-sm">Agent ID</span>
-            <div className="w-8 h-8 rounded-lg bg-[#4F46E5]/20 flex items-center justify-center">
-              <Bot className="w-4 h-4 text-[#4F46E5]" />
+            <div className="w-8 h-8 rounded-lg bg-brand/20 flex items-center justify-center">
+              <Bot className="w-4 h-4 text-brand" />
             </div>
           </div>
           <p className="text-lg font-mono">{agent.id}</p>
@@ -318,7 +318,7 @@ export default function AgentDetail() {
             <button
               key={tab.id}
               onClick={() => setConnectTab(tab.id)}
-              className={`px-3 py-2 text-xs font-medium whitespace-nowrap border-b-2 -mb-px transition-colors ${connectTab === tab.id ? 'border-[#4F46E5] text-white' : 'border-transparent text-[#A7ACBF] hover:text-white'}`}
+              className={`px-3 py-2 text-xs font-medium whitespace-nowrap border-b-2 -mb-px transition-colors ${connectTab === tab.id ? 'border-brand text-white' : 'border-transparent text-[#A7ACBF] hover:text-white'}`}
             >
               {tab.label}
             </button>
@@ -331,7 +331,7 @@ export default function AgentDetail() {
             <code className="block p-2 bg-white/5 rounded-lg text-sm font-mono">pip install jarvis-mc-mcp</code>
             <p className="text-xs text-[#A7ACBF]">Step 2 — register with Claude Code (replace &lt;your-token&gt;):</p>
             <code className="block p-3 bg-white/5 rounded-lg text-sm font-mono whitespace-pre-wrap">{`claude mcp add jarvis \\\n  -e JARVIS_TOKEN=<your-token> \\\n  -e JARVIS_URL=${apiBaseUrl} \\\n  -- jarvis-mcp`}</code>
-            <button onClick={() => copyConnect(`claude mcp add jarvis -e JARVIS_TOKEN=<your-token> -e JARVIS_URL=${apiBaseUrl} -- jarvis-mcp`)} className="flex items-center gap-1 px-3 py-1.5 bg-[#4F46E5] rounded-lg hover:bg-[#4338CA] transition-colors text-xs text-white">
+            <button onClick={() => copyConnect(`claude mcp add jarvis -e JARVIS_TOKEN=<your-token> -e JARVIS_URL=${apiBaseUrl} -- jarvis-mcp`)} className="flex items-center gap-1 px-3 py-1.5 bg-brand rounded-lg hover:bg-brand-hover transition-colors text-xs text-white">
               <CopiedIcon size={14} color="white" />{copiedConnect ? 'Copied!' : 'Copy command'}
             </button>
           </div>
@@ -342,7 +342,7 @@ export default function AgentDetail() {
             <code className="block p-2 bg-white/5 rounded-lg text-sm font-mono">pip install jarvis-mc-mcp</code>
             <p className="text-xs text-[#A7ACBF]">Step 2 — register with Codex (replace &lt;your-token&gt;):</p>
             <code className="block p-3 bg-white/5 rounded-lg text-sm font-mono whitespace-pre-wrap">{`codex mcp add jarvis \\\n  --env JARVIS_TOKEN=<your-token> \\\n  --env JARVIS_URL=${apiBaseUrl} \\\n  -- jarvis-mcp`}</code>
-            <button onClick={() => copyConnect(`codex mcp add jarvis --env JARVIS_TOKEN=<your-token> --env JARVIS_URL=${apiBaseUrl} -- jarvis-mcp`)} className="flex items-center gap-1 px-3 py-1.5 bg-[#4F46E5] rounded-lg hover:bg-[#4338CA] transition-colors text-xs text-white">
+            <button onClick={() => copyConnect(`codex mcp add jarvis --env JARVIS_TOKEN=<your-token> --env JARVIS_URL=${apiBaseUrl} -- jarvis-mcp`)} className="flex items-center gap-1 px-3 py-1.5 bg-brand rounded-lg hover:bg-brand-hover transition-colors text-xs text-white">
               <CopiedIcon size={14} color="white" />{copiedConnect ? 'Copied!' : 'Copy command'}
             </button>
           </div>
@@ -351,7 +351,7 @@ export default function AgentDetail() {
           <div className="space-y-2">
             <p className="text-xs text-[#A7ACBF]">Paste into n8n, Make.com, or Zapier — no headers needed:</p>
             <code className="block p-3 bg-white/5 rounded-lg text-sm font-mono break-all">{`${apiBaseUrl}/v1/webhook/<your-token>`}</code>
-            <button onClick={() => copyConnect(`${apiBaseUrl}/v1/webhook/<your-token>`)} className="flex items-center gap-1 px-3 py-1.5 bg-[#4F46E5] rounded-lg hover:bg-[#4338CA] transition-colors text-xs text-white">
+            <button onClick={() => copyConnect(`${apiBaseUrl}/v1/webhook/<your-token>`)} className="flex items-center gap-1 px-3 py-1.5 bg-brand rounded-lg hover:bg-brand-hover transition-colors text-xs text-white">
               <CopiedIcon size={14} color="white" />{copiedConnect ? 'Copied!' : 'Copy URL'}
             </button>
           </div>
@@ -361,7 +361,7 @@ export default function AgentDetail() {
             <p className="text-xs text-[#A7ACBF]">Install and connect:</p>
             <code className="block p-2 bg-white/5 rounded-lg text-sm font-mono">pip install jarvis-mc</code>
             <code className="block p-3 bg-white/5 rounded-lg text-sm font-mono whitespace-pre-wrap">{`from jarvis_mc import JarvisAgent\n\nagent = JarvisAgent(\n    token="<your-token>",\n    base_url="${apiBaseUrl}"\n)\nagent.log("Agent started")`}</code>
-            <button onClick={() => copyConnect(`from jarvis_mc import JarvisAgent\n\nagent = JarvisAgent(\n    token="<your-token>",\n    base_url="${apiBaseUrl}"\n)\nagent.log("Agent started")`)} className="flex items-center gap-1 px-3 py-1.5 bg-[#4F46E5] rounded-lg hover:bg-[#4338CA] transition-colors text-xs text-white">
+            <button onClick={() => copyConnect(`from jarvis_mc import JarvisAgent\n\nagent = JarvisAgent(\n    token="<your-token>",\n    base_url="${apiBaseUrl}"\n)\nagent.log("Agent started")`)} className="flex items-center gap-1 px-3 py-1.5 bg-brand rounded-lg hover:bg-brand-hover transition-colors text-xs text-white">
               <CopiedIcon size={14} color="white" />{copiedConnect ? 'Copied!' : 'Copy code'}
             </button>
           </div>
@@ -370,7 +370,7 @@ export default function AgentDetail() {
           <div className="space-y-2">
             <p className="text-xs text-[#A7ACBF]">Add Jarvis hooks to your OpenAI Agents setup:</p>
             <code className="block p-3 bg-white/5 rounded-lg text-sm font-mono whitespace-pre-wrap">{`from jarvis_mc.integrations import JarvisHooks\n\nhooks = JarvisHooks(\n    token="<your-token>",\n    base_url="${apiBaseUrl}"\n)\n# Pass hooks= to your Agent constructor`}</code>
-            <button onClick={() => copyConnect(`from jarvis_mc.integrations import JarvisHooks\n\nhooks = JarvisHooks(\n    token="<your-token>",\n    base_url="${apiBaseUrl}"\n)\n# Pass hooks= to your Agent constructor`)} className="flex items-center gap-1 px-3 py-1.5 bg-[#4F46E5] rounded-lg hover:bg-[#4338CA] transition-colors text-xs text-white">
+            <button onClick={() => copyConnect(`from jarvis_mc.integrations import JarvisHooks\n\nhooks = JarvisHooks(\n    token="<your-token>",\n    base_url="${apiBaseUrl}"\n)\n# Pass hooks= to your Agent constructor`)} className="flex items-center gap-1 px-3 py-1.5 bg-brand rounded-lg hover:bg-brand-hover transition-colors text-xs text-white">
               <CopiedIcon size={14} color="white" />{copiedConnect ? 'Copied!' : 'Copy code'}
             </button>
           </div>
@@ -379,7 +379,7 @@ export default function AgentDetail() {
           <div className="space-y-2">
             <p className="text-xs text-[#A7ACBF]">POST from any language or environment:</p>
             <code className="block p-3 bg-white/5 rounded-lg text-sm font-mono whitespace-pre-wrap">{`curl -X POST ${apiBaseUrl}/v1/webhook/<your-token> \\\n  -H "Content-Type: application/json" \\\n  -d '{"type":"action","message":"Hello from my agent"}'`}</code>
-            <button onClick={() => copyConnect(`curl -X POST ${apiBaseUrl}/v1/webhook/<your-token> -H "Content-Type: application/json" -d '{"type":"action","message":"Hello from my agent"}'`)} className="flex items-center gap-1 px-3 py-1.5 bg-[#4F46E5] rounded-lg hover:bg-[#4338CA] transition-colors text-xs text-white">
+            <button onClick={() => copyConnect(`curl -X POST ${apiBaseUrl}/v1/webhook/<your-token> -H "Content-Type: application/json" -d '{"type":"action","message":"Hello from my agent"}'`)} className="flex items-center gap-1 px-3 py-1.5 bg-brand rounded-lg hover:bg-brand-hover transition-colors text-xs text-white">
               <CopiedIcon size={14} color="white" />{copiedConnect ? 'Copied!' : 'Copy command'}
             </button>
           </div>
@@ -406,7 +406,7 @@ export default function AgentDetail() {
                     <span className="text-xs text-[#A7ACBF]">{new Date(event.createdAt).toLocaleString()}</span>
                   </div>
                   <p className="text-sm text-[#A7ACBF] mb-2">{event.message}</p>
-                  <span className="text-xs font-mono text-[#4F46E5]">${event.cost.toFixed(2)}</span>
+                  <span className="text-xs font-mono text-brand">${event.cost.toFixed(2)}</span>
                 </div>
               );
             })}

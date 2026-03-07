@@ -57,7 +57,7 @@ function JarvisBeam() {
         {/* Row 1 */}
         <div className="flex flex-row items-center justify-between">
           <BeamCircle ref={agentCode}>
-            <Terminal className="w-5 h-5 text-[#4F46E5]" />
+            <Terminal className="w-5 h-5 text-brand" />
           </BeamCircle>
           <BeamCircle ref={outActivity}>
             <Activity className="w-5 h-5 text-green-400" />
@@ -66,10 +66,10 @@ function JarvisBeam() {
         {/* Row 2 */}
         <div className="flex flex-row items-center justify-between">
           <BeamCircle ref={agentSearch}>
-            <Search className="w-5 h-5 text-[#4F46E5]" />
+            <Search className="w-5 h-5 text-brand" />
           </BeamCircle>
-          <BeamCircle ref={hub} className="size-16 border-[#4F46E5]/50 bg-[#4F46E5]/10">
-            <Bot className="w-7 h-7 text-[#4F46E5]" />
+          <BeamCircle ref={hub} className="size-16 border-brand/50 bg-brand/10">
+            <Bot className="w-7 h-7 text-brand" />
           </BeamCircle>
           <BeamCircle ref={outInbox}>
             <Inbox className="w-5 h-5 text-orange-400" />
@@ -78,7 +78,7 @@ function JarvisBeam() {
         {/* Row 3 */}
         <div className="flex flex-row items-center justify-between">
           <BeamCircle ref={agentOps}>
-            <Settings className="w-5 h-5 text-[#4F46E5]" />
+            <Settings className="w-5 h-5 text-brand" />
           </BeamCircle>
           <BeamCircle ref={outSpend}>
             <DollarSign className="w-5 h-5 text-yellow-400" />
@@ -275,7 +275,7 @@ export default function LandingPage() {
       <section ref={heroRef} className="h-screen relative overflow-hidden">
         <Spotlight
           className="-top-40 left-0 md:left-60 md:-top-20"
-          fill="#4F46E5"
+          fill="var(--brand-hex)"
         />
 
         {/* Spline 3D scene — full background */}
@@ -290,7 +290,7 @@ export default function LandingPage() {
         <div className="relative z-10 flex h-full pt-16 pointer-events-none">
           <div className="flex flex-col justify-center px-8 md:px-16 max-w-2xl">
             <div className="hero-badge inline-block mb-6">
-              <span className="eyebrow text-[#4F46E5] border-b border-[#4F46E5] pb-1">
+              <span className="eyebrow text-brand border-b border-brand pb-1">
                 PRIVATE BETA
               </span>
             </div>
@@ -341,7 +341,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
             <div>
-              <span className="eyebrow text-[#4F46E5] mb-4 block">How it works</span>
+              <span className="eyebrow text-brand mb-4 block">How it works</span>
               <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6">
                 Agents report in.<br />
                 <span className="text-gradient">Jarvis takes control.</span>
@@ -353,12 +353,12 @@ export default function LandingPage() {
               </p>
               <div className="space-y-4">
                 {[
-                  { icon: Terminal,  color: 'text-[#4F46E5]', label: 'code-agent',     desc: 'Generates, tests, and commits code' },
-                  { icon: Search,    color: 'text-[#4F46E5]', label: 'research-agent', desc: 'Searches the web and compiles reports' },
-                  { icon: Settings,  color: 'text-[#4F46E5]', label: 'ops-agent',      desc: 'Monitors alerts and files tickets' },
+                  { icon: Terminal,  color: 'text-brand', label: 'code-agent',     desc: 'Generates, tests, and commits code' },
+                  { icon: Search,    color: 'text-brand', label: 'research-agent', desc: 'Searches the web and compiles reports' },
+                  { icon: Settings,  color: 'text-brand', label: 'ops-agent',      desc: 'Monitors alerts and files tickets' },
                 ].map((item) => (
                   <div key={item.label} className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-[#4F46E5]/10 flex items-center justify-center shrink-0">
+                    <div className="w-8 h-8 rounded-lg bg-brand/10 flex items-center justify-center shrink-0">
                       <item.icon className={`w-4 h-4 ${item.color}`} />
                     </div>
                     <span className="text-sm font-mono text-white">{item.label}</span>
@@ -385,7 +385,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
             <div className="animate-in">
-              <span className="eyebrow text-[#4F46E5] mb-4 block">Live Activity</span>
+              <span className="eyebrow text-brand mb-4 block">Live Activity</span>
               <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6">
                 Every action. Every cost. In real time.
               </h2>
@@ -401,12 +401,12 @@ export default function LandingPage() {
                   'Agent last_seen_at updated on every event; status set to waiting_approval on approval requests',
                 ].map((item, i) => (
                   <li key={i} className="flex items-center gap-3">
-                    <CheckCircle className="w-5 h-5 text-[#4F46E5]" />
+                    <CheckCircle className="w-5 h-5 text-brand" />
                     <span>{item}</span>
                   </li>
                 ))}
               </ul>
-              <Link to="/auth" className="inline-flex items-center gap-2 text-[#4F46E5] hover:gap-3 transition-all">
+              <Link to="/auth" className="inline-flex items-center gap-2 text-brand hover:gap-3 transition-all">
                 See the live feed <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
@@ -419,8 +419,8 @@ export default function LandingPage() {
                     title: 'tool_call',
                     description: 'code-agent — write_file /src/auth.ts',
                     date: '8 min ago',
-                    iconClassName: 'text-[#4F46E5]',
-                    titleClassName: 'text-[#4F46E5]',
+                    iconClassName: 'text-brand',
+                    titleClassName: 'text-brand',
                   },
                   {
                     icon: <CheckCircle className="w-4 h-4" />,
@@ -452,8 +452,8 @@ export default function LandingPage() {
             <div className="order-2 lg:order-1 animate-in">
               <div className="data-card p-6">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-lg bg-[#4F46E5]/20 flex items-center justify-center">
-                    <Bot className="w-5 h-5 text-[#4F46E5]" />
+                  <div className="w-10 h-10 rounded-lg bg-brand/20 flex items-center justify-center">
+                    <Bot className="w-5 h-5 text-brand" />
                   </div>
                   <div>
                     <p className="font-medium font-mono">ops-agent</p>
@@ -474,8 +474,8 @@ export default function LandingPage() {
                 </div>
 
                 <p className="text-xs text-[#A7ACBF] uppercase tracking-widest mb-3">Proposed next action</p>
-                <div className="flex items-start gap-2 mb-6 p-3 rounded-lg border border-[#4F46E5]/30 bg-[#4F46E5]/5">
-                  <ArrowRight className="w-4 h-4 text-[#4F46E5] mt-0.5 shrink-0" />
+                <div className="flex items-start gap-2 mb-6 p-3 rounded-lg border border-brand/30 bg-brand/5">
+                  <ArrowRight className="w-4 h-4 text-brand mt-0.5 shrink-0" />
                   <span className="text-sm">Send marketing email to 312 recipients</span>
                 </div>
 
@@ -491,13 +491,13 @@ export default function LandingPage() {
             </div>
 
             <div className="order-1 lg:order-2 animate-in">
-              <span className="eyebrow text-[#4F46E5] mb-4 block">Approvals</span>
+              <span className="eyebrow text-brand mb-4 block">Approvals</span>
               <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6">
                 Your agent pauses. You decide. It continues.
               </h2>
               <p className="text-[#A7ACBF] text-lg mb-8">
-                When an agent sets <code className="text-[#4F46E5] bg-white/5 px-1 rounded">requiresApproval: true</code>, Jarvis
-                holds it in a <code className="text-[#4F46E5] bg-white/5 px-1 rounded">waiting_approval</code> state and surfaces the
+                When an agent sets <code className="text-brand bg-white/5 px-1 rounded">requiresApproval: true</code>, Jarvis
+                holds it in a <code className="text-brand bg-white/5 px-1 rounded">waiting_approval</code> state and surfaces the
                 request in your inbox — showing what it has already done and exactly what it wants to do next.
                 Your decision is delivered back to the agent via the command polling API.
               </p>
@@ -508,12 +508,12 @@ export default function LandingPage() {
                   'Decision delivered via command polling — no webhook needed',
                 ].map((item, i) => (
                   <li key={i} className="flex items-center gap-3">
-                    <CheckCircle className="w-5 h-5 text-[#4F46E5]" />
+                    <CheckCircle className="w-5 h-5 text-brand" />
                     <span>{item}</span>
                   </li>
                 ))}
               </ul>
-              <Link to="/auth" className="inline-flex items-center gap-2 text-[#4F46E5] hover:gap-3 transition-all">
+              <Link to="/auth" className="inline-flex items-center gap-2 text-brand hover:gap-3 transition-all">
                 Open the inbox <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
@@ -526,7 +526,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
             <div className="animate-in">
-              <span className="eyebrow text-[#4F46E5] mb-4 block">Spend Control</span>
+              <span className="eyebrow text-brand mb-4 block">Spend Control</span>
               <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6">
                 Know exactly what your agents cost.
               </h2>
@@ -542,12 +542,12 @@ export default function LandingPage() {
                   'Editable monthly budget cap — warning at 80%, alert at 100%',
                 ].map((item, i) => (
                   <li key={i} className="flex items-center gap-3">
-                    <CheckCircle className="w-5 h-5 text-[#4F46E5]" />
+                    <CheckCircle className="w-5 h-5 text-brand" />
                     <span>{item}</span>
                   </li>
                 ))}
               </ul>
-              <Link to="/auth" className="inline-flex items-center gap-2 text-[#4F46E5] hover:gap-3 transition-all">
+              <Link to="/auth" className="inline-flex items-center gap-2 text-brand hover:gap-3 transition-all">
                 View the spend dashboard <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
@@ -594,8 +594,8 @@ export default function LandingPage() {
                   { icon: Activity, title: 'Immutable event log', desc: 'Every action, cost, and approval decision is recorded and cannot be deleted' },
                 ].map((item, i) => (
                   <div key={i} className="flex items-center gap-4 p-4 rounded-lg border border-white/5 bg-white/[0.02]">
-                    <div className="w-10 h-10 rounded-lg bg-[#4F46E5]/20 flex items-center justify-center shrink-0">
-                      <item.icon className="w-5 h-5 text-[#4F46E5]" />
+                    <div className="w-10 h-10 rounded-lg bg-brand/20 flex items-center justify-center shrink-0">
+                      <item.icon className="w-5 h-5 text-brand" />
                     </div>
                     <div>
                       <p className="font-medium">{item.title}</p>
@@ -607,7 +607,7 @@ export default function LandingPage() {
             </div>
 
             <div className="order-1 lg:order-2 animate-in">
-              <span className="eyebrow text-[#4F46E5] mb-4 block">Security</span>
+              <span className="eyebrow text-brand mb-4 block">Security</span>
               <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6">
                 Secure by default, not by configuration.
               </h2>
@@ -623,7 +623,7 @@ export default function LandingPage() {
                   'All decisions logged with agent ID, timestamp, and optional comment',
                 ].map((item, i) => (
                   <li key={i} className="flex items-center gap-3">
-                    <CheckCircle className="w-5 h-5 text-[#4F46E5]" />
+                    <CheckCircle className="w-5 h-5 text-brand" />
                     <span>{item}</span>
                   </li>
                 ))}
@@ -637,7 +637,7 @@ export default function LandingPage() {
       <section ref={useCasesRef} className="py-24 md:py-32 relative">
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-16">
-            <span className="eyebrow text-[#4F46E5] mb-4 block">Use Cases</span>
+            <span className="eyebrow text-brand mb-4 block">Use Cases</span>
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold">
               Built for how people actually run agents.
             </h2>
@@ -662,8 +662,8 @@ export default function LandingPage() {
               },
             ].map((item, i) => (
               <div key={i} className="use-case-card data-card p-8">
-                <div className="w-12 h-12 rounded-xl bg-[#4F46E5]/20 flex items-center justify-center mb-6">
-                  <item.icon className="w-6 h-6 text-[#4F46E5]" />
+                <div className="w-12 h-12 rounded-xl bg-brand/20 flex items-center justify-center mb-6">
+                  <item.icon className="w-6 h-6 text-brand" />
                 </div>
                 <h3 className="text-xl font-bold mb-4">{item.title}</h3>
                 <p className="text-[#A7ACBF]">{item.desc}</p>
@@ -677,7 +677,7 @@ export default function LandingPage() {
       <section ref={testimonialsRef} className="py-24 md:py-32 relative">
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-16">
-            <span className="eyebrow text-[#4F46E5] mb-4 block">Testimonials</span>
+            <span className="eyebrow text-brand mb-4 block">Testimonials</span>
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold">
               What early teams are saying.
             </h2>
@@ -699,7 +699,7 @@ export default function LandingPage() {
               <div key={i} className="testimonial-card data-card p-8">
                 <p className="text-lg mb-6 leading-relaxed">"{item.quote}"</p>
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#4F46E5] to-[#7C3AED] flex items-center justify-center text-white font-semibold">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-brand to-brand-secondary flex items-center justify-center text-white font-semibold">
                     {item.author.split(' ').map(n => n[0]).join('')}
                   </div>
                   <div>
@@ -717,7 +717,7 @@ export default function LandingPage() {
       <section ref={pricingRef} className="py-24 md:py-32 relative">
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-16">
-            <span className="eyebrow text-[#4F46E5] mb-4 block">Pricing</span>
+            <span className="eyebrow text-brand mb-4 block">Pricing</span>
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold">
               Start free. Scale with confidence.
             </h2>
@@ -769,12 +769,12 @@ export default function LandingPage() {
                 key={i} 
                 className={`pricing-card p-8 rounded-xl border ${
                   item.highlighted 
-                    ? 'border-[#4F46E5] bg-[#4F46E5]/5' 
+                    ? 'border-brand bg-brand/5' 
                     : 'border-white/5 bg-white/[0.02]'
                 }`}
               >
                 {item.highlighted && (
-                  <span className="inline-block text-xs font-medium text-[#4F46E5] bg-[#4F46E5]/20 px-3 py-1 rounded-full mb-4">
+                  <span className="inline-block text-xs font-medium text-brand bg-brand/20 px-3 py-1 rounded-full mb-4">
                     Most Popular
                   </span>
                 )}
@@ -786,14 +786,14 @@ export default function LandingPage() {
                 <ul className="space-y-3 mb-8">
                   {item.features.map((feature, j) => (
                     <li key={j} className="flex items-center gap-2 text-sm">
-                      <CheckCircle className="w-4 h-4 text-[#4F46E5]" />
+                      <CheckCircle className="w-4 h-4 text-brand" />
                       <span className="text-[#A7ACBF]">{feature}</span>
                     </li>
                   ))}
                 </ul>
                 <button className={`w-full py-3 rounded-lg font-medium transition-all ${
                   item.highlighted 
-                    ? 'bg-[#4F46E5] text-white hover:bg-[#4338CA]' 
+                    ? 'bg-brand text-white hover:bg-brand-hover' 
                     : 'border border-white/10 text-white hover:bg-white/5'
                 }`}>
                   {item.cta}
@@ -843,7 +843,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <Link to="/" className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-[#4F46E5] flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-brand flex items-center justify-center">
                 <Bot className="w-5 h-5 text-white" />
               </div>
               <span className="font-bold text-lg tracking-tight">JARVIS</span>

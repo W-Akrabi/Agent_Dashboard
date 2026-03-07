@@ -125,8 +125,8 @@ export default function Dashboard() {
         <div className="data-card p-5">
           <div className="flex items-center justify-between mb-3">
             <span className="text-[#A7ACBF] text-sm">Active Agents</span>
-            <div className="w-8 h-8 rounded-lg bg-[#4F46E5]/20 flex items-center justify-center">
-              <ToggleIcon size={20} color="#4F46E5" />
+            <div className="w-8 h-8 rounded-lg bg-brand/20 flex items-center justify-center">
+              <ToggleIcon size={20} color="var(--brand-hex)" />
             </div>
           </div>
           <p className="text-2xl font-bold">{activeAgents}</p>
@@ -141,7 +141,7 @@ export default function Dashboard() {
             </div>
           </div>
           <p className="text-2xl font-bold">{pendingCount}</p>
-          <Link to="/inbox" className="text-xs text-[#4F46E5] hover:underline mt-1 inline-block">
+          <Link to="/inbox" className="text-xs text-brand hover:underline mt-1 inline-block">
             View inbox →
           </Link>
         </div>
@@ -163,14 +163,14 @@ export default function Dashboard() {
         <div className="data-card p-5">
           <div className="flex items-center justify-between mb-3">
             <span className="text-[#A7ACBF] text-sm">Monthly Budget</span>
-            <div className="w-8 h-8 rounded-lg bg-[#4F46E5]/20 flex items-center justify-center">
-              <Activity className="w-4 h-4 text-[#4F46E5]" />
+            <div className="w-8 h-8 rounded-lg bg-brand/20 flex items-center justify-center">
+              <Activity className="w-4 h-4 text-brand" />
             </div>
           </div>
           <p className="text-2xl font-bold">{budgetPercent.toFixed(0)}%</p>
           <div className="mt-2 h-1.5 bg-white/10 rounded-full overflow-hidden">
             <div
-              className={`h-full rounded-full ${budgetPercent > 80 ? 'bg-red-500' : 'bg-[#4F46E5]'}`}
+              className={`h-full rounded-full ${budgetPercent > 80 ? 'bg-red-500' : 'bg-brand'}`}
               style={{ width: `${Math.min(budgetPercent, 100)}%` }}
             />
           </div>
@@ -181,7 +181,7 @@ export default function Dashboard() {
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">Your Agents</h2>
-            <Link to="/agents" className="text-sm text-[#4F46E5] hover:underline">
+            <Link to="/agents" className="text-sm text-brand hover:underline">
               View all →
             </Link>
           </div>
@@ -229,7 +229,7 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  <Link to={`/agents/${agent.id}`} className="mt-4 text-xs text-[#4F46E5] hover:underline block">
+                  <Link to={`/agents/${agent.id}`} className="mt-4 text-xs text-brand hover:underline block">
                     View details →
                   </Link>
                 </div>
@@ -260,7 +260,7 @@ export default function Dashboard() {
                   </div>
                   <p className="text-sm text-[#A7ACBF] mb-2 line-clamp-2">{event.message}</p>
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-mono text-[#4F46E5]">${event.cost.toFixed(2)}</span>
+                    <span className="font-mono text-brand">${event.cost.toFixed(2)}</span>
                     <span className="text-[#A7ACBF]">
                       {new Date(event.createdAt).toLocaleTimeString([], {
                         hour: '2-digit',

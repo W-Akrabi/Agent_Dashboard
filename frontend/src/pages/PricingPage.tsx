@@ -97,7 +97,7 @@ export default function PricingPage() {
       {/* Hero */}
       <section className="py-24 md:py-32 relative">
         <div className="max-w-4xl mx-auto px-6 text-center">
-          <span className="eyebrow text-[#4F46E5] mb-4 block">Pricing</span>
+          <span className="eyebrow text-brand mb-4 block">Pricing</span>
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6">
             Start free.
             <br />
@@ -119,12 +119,12 @@ export default function PricingPage() {
                 key={tier.name}
                 className={`p-8 rounded-xl border ${
                   tier.highlighted
-                    ? 'border-[#4F46E5] bg-[#4F46E5]/5'
+                    ? 'border-brand bg-brand/5'
                     : 'border-white/5 bg-white/[0.02]'
                 }`}
               >
                 {tier.badge && (
-                  <span className="inline-block text-xs font-medium text-[#4F46E5] bg-[#4F46E5]/20 px-3 py-1 rounded-full mb-4">
+                  <span className="inline-block text-xs font-medium text-brand bg-brand/20 px-3 py-1 rounded-full mb-4">
                     {tier.badge}
                   </span>
                 )}
@@ -138,7 +138,7 @@ export default function PricingPage() {
                   {tier.features.map((feature) => (
                     <li key={feature.label} className="flex items-center gap-2 text-sm">
                       {feature.included ? (
-                        <CheckCircle className="w-4 h-4 text-[#4F46E5] shrink-0" />
+                        <CheckCircle className="w-4 h-4 text-brand shrink-0" />
                       ) : (
                         <X className="w-4 h-4 text-white/20 shrink-0" />
                       )}
@@ -152,7 +152,7 @@ export default function PricingPage() {
                   to={tier.ctaLink}
                   className={`block w-full py-3 rounded-lg font-medium text-center transition-all ${
                     tier.highlighted
-                      ? 'bg-[#4F46E5] text-white hover:bg-[#4338CA]'
+                      ? 'bg-brand text-white hover:bg-brand-hover'
                       : 'border border-white/10 text-white hover:bg-white/5'
                   }`}
                 >
@@ -177,7 +177,7 @@ export default function PricingPage() {
                 <tr className="border-b border-white/10">
                   <th className="text-left py-4 px-6 text-[#A7ACBF] font-medium w-1/2">Feature</th>
                   <th className="py-4 px-4 text-center font-medium">Starter</th>
-                  <th className="py-4 px-4 text-center font-medium text-[#4F46E5]">Pro</th>
+                  <th className="py-4 px-4 text-center font-medium text-brand">Pro</th>
                   <th className="py-4 px-4 text-center font-medium">Enterprise</th>
                 </tr>
               </thead>
@@ -212,12 +212,12 @@ export default function PricingPage() {
                         <td key={key} className="py-3.5 px-4 text-center">
                           {typeof val === 'boolean' ? (
                             val ? (
-                              <CheckCircle className={`w-4 h-4 mx-auto ${key === 'pro' ? 'text-[#4F46E5]' : 'text-green-400'}`} />
+                              <CheckCircle className={`w-4 h-4 mx-auto ${key === 'pro' ? 'text-brand' : 'text-green-400'}`} />
                             ) : (
                               <X className="w-4 h-4 mx-auto text-white/15" />
                             )
                           ) : (
-                            <span className={key === 'pro' ? 'text-[#4F46E5] font-medium' : ''}>{val}</span>
+                            <span className={key === 'pro' ? 'text-brand font-medium' : ''}>{val}</span>
                           )}
                         </td>
                       );

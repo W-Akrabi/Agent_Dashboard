@@ -5,6 +5,16 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        // ── Brand accent tokens ─────────────────────────────────────────────
+        // These map to --brand* CSS variables defined in index.css :root.
+        // To retheme the app, update those variables — do NOT change these.
+        brand: {
+          DEFAULT: "rgb(var(--brand) / <alpha-value>)",
+          secondary: "rgb(var(--brand-secondary) / <alpha-value>)",
+          hover: "rgb(var(--brand-hover) / <alpha-value>)",
+          light: "rgb(var(--brand-light) / <alpha-value>)",
+        },
+        // ── shadcn/ui semantic tokens ───────────────────────────────────────
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

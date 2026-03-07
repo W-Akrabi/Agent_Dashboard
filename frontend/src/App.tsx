@@ -41,7 +41,7 @@ export default function App() {
     return (
       <div className="fixed inset-0 bg-[#05060B] flex items-center justify-center z-50">
         <div className="text-center">
-          <div className="w-12 h-12 border-2 border-[#4F46E5] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <div className="w-12 h-12 border-2 border-brand border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-[#A7ACBF] font-mono text-sm">INITIALIZING...</p>
         </div>
       </div>

@@ -75,7 +75,7 @@ export function Header1() {
                               <p className="text-[#A7ACBF] text-sm mt-1">{item.description}</p>
                             </div>
                             <Link to="/auth">
-                              <Button size="sm" className="mt-10 bg-[#4F46E5] hover:bg-[#4338CA] text-white w-full">
+                              <Button size="sm" className="mt-10 bg-brand hover:bg-brand-hover text-white w-full">
                                 Get early access
                               </Button>
                             </Link>
@@ -88,7 +88,7 @@ export function Header1() {
                                 className="flex flex-row justify-between items-center hover:bg-white/5 py-2 px-3 rounded-lg text-[#A7ACBF] hover:text-white transition-colors"
                               >
                                 <span>{subItem.title}</span>
-                                <MoveRight className="w-4 h-4 text-[#4F46E5]" />
+                                <MoveRight className="w-4 h-4 text-brand" />
                               </Link>
                             ))}
                           </div>
@@ -105,7 +105,7 @@ export function Header1() {
         {/* Center — brand */}
         <div className="flex lg:justify-center">
           <Link to="/" className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-[#4F46E5] flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-brand flex items-center justify-center">
               <Bot className="w-5 h-5 text-white" />
             </div>
             <span className="font-bold text-lg tracking-tight text-[#F4F6FF]">JARVIS</span>
@@ -121,7 +121,7 @@ export function Header1() {
           </Link>
           <div className="border-r border-white/10 hidden md:inline" />
           <Link to="/auth">
-            <Button className="bg-[#4F46E5] hover:bg-[#4338CA] text-white border-0">
+            <Button className="bg-brand hover:bg-brand-hover text-white border-0">
               Get Started
             </Button>
           </Link>
@@ -162,7 +162,7 @@ export function Header1() {
                         onClick={() => setOpen(false)}
                       >
                         <span className="text-[#A7ACBF]">{subItem.title}</span>
-                        <MoveRight className="w-4 h-4 stroke-1 text-[#4F46E5]" />
+                        <MoveRight className="w-4 h-4 stroke-1 text-brand" />
                       </Link>
                     ))}
                   </div>
@@ -175,7 +175,7 @@ export function Header1() {
                   </Button>
                 </Link>
                 <Link to="/auth" onClick={() => setOpen(false)}>
-                  <Button className="w-full bg-[#4F46E5] hover:bg-[#4338CA] text-white border-0">
+                  <Button className="w-full bg-brand hover:bg-brand-hover text-white border-0">
                     Get Started
                   </Button>
                 </Link>

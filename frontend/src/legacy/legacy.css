@@ -11,7 +11,7 @@
     --card-hover: #0F1220;
     --border: rgba(244, 246, 255, 0.07);
     --border-hover: rgba(244, 246, 255, 0.14);
-    --accent: #4F46E5;
+    --accent: var(--brand-hex);
     --accent-dim: rgba(79, 70, 229, 0.2);
     --accent-glow: rgba(79, 70, 229, 0.4);
     --text-1: #F4F6FF;
@@ -724,7 +724,7 @@ h6 {
 }
 
 .btn-primary:hover {
-    background: #4338CA;
+    background: rgb(var(--brand-hover));
     transform: translateY(-1px);
     box-shadow: 0 6px 20px var(--accent-glow);
 }

@@ -6,25 +6,42 @@
 
 @layer base {
   :root {
+    /* ── BRAND ACCENT ─────────────────────────────────────────────────────
+       Change ONLY these variables to retheme the entire app.
+       All Tailwind brand utilities, shadcn/ui components, global CSS classes,
+       and SVG icon fills derive from these four values.
+
+       --brand-hsl  and  --brand  must be the same colour in HSL vs RGB:
+         HSL 239 75% 59%  =  RGB 79 70 229  =  #4F46E5
+    ────────────────────────────────────────────────────────────────────── */
+    --brand-hsl: 239 75% 59%;      /* used by shadcn/ui via hsl(var(--x))   */
+    --brand: 79 70 229;            /* used by Tailwind brand utilities       */
+    --brand-secondary: 124 58 237; /* #7C3AED — gradient end / 2nd accent   */
+    --brand-hover: 67 56 202;      /* #4338CA — darkened hover (dark bg)    */
+    --brand-light: 91 82 236;      /* #5B52EC — brightened hover (flat btn) */
+    --brand-hex: #4F46E5;          /* raw hex — for SVG color= and fill=    */
+    --brand-secondary-hex: #7C3AED;/* raw hex — for SVG gradient stops      */
+
+    /* ── shadcn/ui semantic tokens (reference brand above) ─────────────── */
     --background: 225 33% 3%;
     --foreground: 230 60% 97%;
     --card: 222 24% 7%;
     --card-foreground: 230 60% 97%;
     --popover: 222 24% 7%;
     --popover-foreground: 230 60% 97%;
-    --primary: 239 75% 59%;
+    --primary: var(--brand-hsl);
     --primary-foreground: 0 0% 100%;
     --secondary: 222 24% 12%;
     --secondary-foreground: 230 60% 97%;
     --muted: 222 24% 12%;
     --muted-foreground: 227 12% 70%;
-    --accent: 239 75% 59%;
+    --accent: var(--brand-hsl);
     --accent-foreground: 0 0% 100%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
     --border: 227 12% 18%;
     --input: 227 12% 18%;
-    --ring: 239 75% 59%;
+    --ring: var(--brand-hsl);
     --radius: 0.625rem;
   }
 }
@@ -71,8 +88,8 @@
     left: 0;
     right: 0;
     height: 1px;
-    background: rgba(79, 70, 229, 0.65);
-    box-shadow: 0 0 10px rgba(79, 70, 229, 0.35);
+    background: rgb(var(--brand) / 0.65);
+    box-shadow: 0 0 10px rgb(var(--brand) / 0.35);
   }
   
   .hud-frame::after {
@@ -82,8 +99,8 @@
     left: 0;
     right: 0;
     height: 1px;
-    background: rgba(79, 70, 229, 0.65);
-    box-shadow: 0 0 10px rgba(79, 70, 229, 0.35);
+    background: rgb(var(--brand) / 0.65);
+    box-shadow: 0 0 10px rgb(var(--brand) / 0.35);
   }
   
   .hud-frame-left,
@@ -92,7 +109,7 @@
     top: 0;
     bottom: 0;
     width: 1px;
-    background: rgba(79, 70, 229, 0.35);
+    background: rgb(var(--brand) / 0.35);
   }
   
   .hud-frame-left {
@@ -173,8 +190,8 @@
   }
   
   .glow-border {
-    border-color: rgba(79, 70, 229, 0.5);
-    box-shadow: 0 0 20px rgba(79, 70, 229, 0.2);
+    border-color: rgb(var(--brand) / 0.5);
+    box-shadow: 0 0 20px rgb(var(--brand) / 0.2);
   }
   
   .text-gradient {
@@ -185,12 +202,12 @@
   }
   
   .accent-glow {
-    box-shadow: 0 0 20px rgba(79, 70, 229, 0.4);
+    box-shadow: 0 0 20px rgb(var(--brand) / 0.4);
   }
   
   .nav-pill-active {
-    background: rgba(79, 70, 229, 0.2);
-    border-bottom: 2px solid #4F46E5;
+    background: rgb(var(--brand) / 0.2);
+    border-bottom: 2px solid rgb(var(--brand));
   }
   
   .section-pinned {
@@ -211,13 +228,13 @@
   
   .btn-primary {
     @apply px-6 py-3 rounded-[10px] font-medium transition-all duration-200;
-    background: #4F46E5;
+    background: rgb(var(--brand));
     color: white;
   }
   
   .btn-primary:hover {
     transform: translateY(-2px) scale(1.02);
-    box-shadow: 0 8px 25px rgba(79, 70, 229, 0.4);
+    box-shadow: 0 8px 25px rgb(var(--brand) / 0.4);
   }
   
   .btn-secondary {
@@ -256,10 +273,10 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(79, 70, 229, 0.4);
+  background: rgb(var(--brand) / 0.4);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(79, 70, 229, 0.6);
+  background: rgb(var(--brand) / 0.6);
 }

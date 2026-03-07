@@ -37,7 +37,7 @@ const navItems: SidebarLinkItem[] = [
 
 const SidebarLogo = () => (
   <Link to="/" className="flex items-center gap-3 mb-8 px-2 py-1">
-    <div className="w-8 h-8 rounded-lg bg-[#4F46E5] flex items-center justify-center flex-shrink-0">
+    <div className="w-8 h-8 rounded-lg bg-brand flex items-center justify-center flex-shrink-0">
       <Bot className="w-5 h-5 text-white" />
     </div>
     <motion.span
@@ -50,7 +50,7 @@ const SidebarLogo = () => (
 
 const SidebarLogoIcon = () => (
   <Link to="/" className="flex items-center gap-3 mb-8 px-2 py-1">
-    <div className="w-8 h-8 rounded-lg bg-[#4F46E5] flex items-center justify-center flex-shrink-0">
+    <div className="w-8 h-8 rounded-lg bg-brand flex items-center justify-center flex-shrink-0">
       <Bot className="w-5 h-5 text-white" />
     </div>
   </Link>
@@ -114,7 +114,7 @@ export default function Layout() {
                   ? (
                     <span className="relative flex-shrink-0">
                       {item.icon}
-                      <span className="absolute -top-1 -right-1 w-2 h-2 bg-[#4F46E5] rounded-full" />
+                      <span className="absolute -top-1 -right-1 w-2 h-2 bg-brand rounded-full" />
                     </span>
                   )
                   : item.icon;
@@ -125,7 +125,7 @@ export default function Layout() {
                     link={{ ...item, icon }}
                     className={cn(
                       active
-                        ? 'bg-[#4F46E5]/20 text-white'
+                        ? 'bg-brand/20 text-white'
                         : 'text-[#A7ACBF] hover:bg-white/5 hover:text-white'
                     )}
                   />
@@ -137,7 +137,7 @@ export default function Layout() {
           {/* Bottom: user + sign out */}
           <div className="flex flex-col gap-3 pt-4 border-t border-white/5">
             <div className="flex items-center gap-3 px-2">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#4F46E5] to-[#7C3AED] flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brand to-brand-secondary flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
                 {initials}
               </div>
               <motion.div
@@ -199,7 +199,7 @@ export default function Layout() {
               <Link to="/inbox" className="relative p-2 text-[#A7ACBF] hover:text-white transition-colors">
                 <Bell className="w-5 h-5" />
                 {pendingCount > 0 && (
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-[#4F46E5] rounded-full" />
+                  <span className="absolute top-1 right-1 w-2 h-2 bg-brand rounded-full" />
                 )}
               </Link>
               <a href="#" className="hidden sm:flex items-center gap-2 text-[#A7ACBF] hover:text-white transition-colors text-sm">

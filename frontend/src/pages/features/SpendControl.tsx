@@ -10,7 +10,7 @@ export default function SpendControlPage() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
             <div>
-              <span className="eyebrow text-[#4F46E5] mb-4 block">Spend Control</span>
+              <span className="eyebrow text-brand mb-4 block">Spend Control</span>
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6">
                 Know exactly what
                 <br />
@@ -61,7 +61,7 @@ export default function SpendControlPage() {
                     </div>
                     <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-[#4F46E5]/60 rounded-full"
+                        className="h-full bg-brand/60 rounded-full"
                         style={{ width: `${item.pct}%` }}
                       />
                     </div>
@@ -88,7 +88,7 @@ export default function SpendControlPage() {
       <section className="py-24 md:py-32 relative border-t border-white/5">
         <div className="max-w-7xl mx-auto px-6">
           <div className="max-w-2xl mx-auto text-center mb-16">
-            <span className="eyebrow text-[#4F46E5] mb-4 block">Features</span>
+            <span className="eyebrow text-brand mb-4 block">Features</span>
             <h2 className="text-3xl md:text-4xl font-bold">Everything you need to stay on budget.</h2>
           </div>
 
@@ -136,15 +136,15 @@ export default function SpendControlPage() {
               },
             ].map((item) => (
               <div key={item.title} className="data-card p-6">
-                <div className="w-10 h-10 rounded-lg bg-[#4F46E5]/20 flex items-center justify-center mb-4">
-                  <item.icon className="w-5 h-5 text-[#4F46E5]" />
+                <div className="w-10 h-10 rounded-lg bg-brand/20 flex items-center justify-center mb-4">
+                  <item.icon className="w-5 h-5 text-brand" />
                 </div>
                 <h3 className="font-semibold mb-2">{item.title}</h3>
                 <p className="text-sm text-[#A7ACBF] mb-4">{item.desc}</p>
                 <ul className="space-y-2">
                   {item.features.map((f) => (
                     <li key={f} className="flex items-center gap-2 text-sm">
-                      <CheckCircle className="w-4 h-4 text-[#4F46E5] shrink-0" />
+                      <CheckCircle className="w-4 h-4 text-brand shrink-0" />
                       <span className="text-[#A7ACBF]">{f}</span>
                     </li>
                   ))}
@@ -160,14 +160,14 @@ export default function SpendControlPage() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-start">
             <div>
-              <span className="eyebrow text-[#4F46E5] mb-4 block">Integration</span>
+              <span className="eyebrow text-brand mb-4 block">Integration</span>
               <h2 className="text-3xl md:text-4xl font-bold mb-6">
                 Log cost in three ways.
               </h2>
               <p className="text-[#A7ACBF] text-lg mb-8">
-                Pass a <code className="text-[#4F46E5] bg-white/5 px-1.5 rounded">cost</code> field
+                Pass a <code className="text-brand bg-white/5 px-1.5 rounded">cost</code> field
                 with any event. If you don't include it, it defaults to{' '}
-                <code className="text-[#4F46E5] bg-white/5 px-1.5 rounded">0</code>. You can use
+                <code className="text-brand bg-white/5 px-1.5 rounded">0</code>. You can use
                 whatever unit makes sense — just stay consistent across your agents.
               </p>
               <ul className="space-y-4">
@@ -177,7 +177,7 @@ export default function SpendControlPage() {
                   'Zero cost events still tracked; cost field is always optional',
                 ].map((item) => (
                   <li key={item} className="flex items-center gap-3 text-[#A7ACBF]">
-                    <CheckCircle className="w-5 h-5 text-[#4F46E5] shrink-0" />
+                    <CheckCircle className="w-5 h-5 text-brand shrink-0" />
                     <span className="text-sm">{item}</span>
                   </li>
                 ))}

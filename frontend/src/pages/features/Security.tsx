@@ -10,7 +10,7 @@ export default function SecurityPage() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
             <div>
-              <span className="eyebrow text-[#4F46E5] mb-4 block">Security</span>
+              <span className="eyebrow text-brand mb-4 block">Security</span>
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6">
                 Secure by default,
                 <br />
@@ -54,8 +54,8 @@ export default function SecurityPage() {
                   key={item.title}
                   className="flex items-start gap-4 p-5 rounded-xl border border-white/5 bg-white/[0.02]"
                 >
-                  <div className="w-10 h-10 rounded-lg bg-[#4F46E5]/20 flex items-center justify-center shrink-0">
-                    <item.icon className="w-5 h-5 text-[#4F46E5]" />
+                  <div className="w-10 h-10 rounded-lg bg-brand/20 flex items-center justify-center shrink-0">
+                    <item.icon className="w-5 h-5 text-brand" />
                   </div>
                   <div>
                     <p className="font-medium mb-1">{item.title}</p>
@@ -72,7 +72,7 @@ export default function SecurityPage() {
       <section className="py-24 md:py-32 relative border-t border-white/5">
         <div className="max-w-7xl mx-auto px-6">
           <div className="max-w-2xl mx-auto text-center mb-16">
-            <span className="eyebrow text-[#4F46E5] mb-4 block">Details</span>
+            <span className="eyebrow text-brand mb-4 block">Details</span>
             <h2 className="text-3xl md:text-4xl font-bold">Every layer, explained.</h2>
           </div>
 
@@ -146,14 +146,14 @@ export default function SecurityPage() {
               },
             ].map((item) => (
               <div key={item.title} className="data-card p-6">
-                <div className="w-10 h-10 rounded-lg bg-[#4F46E5]/20 flex items-center justify-center mb-4">
-                  <item.icon className="w-5 h-5 text-[#4F46E5]" />
+                <div className="w-10 h-10 rounded-lg bg-brand/20 flex items-center justify-center mb-4">
+                  <item.icon className="w-5 h-5 text-brand" />
                 </div>
                 <h3 className="font-semibold mb-3">{item.title}</h3>
                 <ul className="space-y-2">
                   {item.points.map((point) => (
                     <li key={point} className="flex items-start gap-2 text-sm">
-                      <CheckCircle className="w-4 h-4 text-[#4F46E5] shrink-0 mt-0.5" />
+                      <CheckCircle className="w-4 h-4 text-brand shrink-0 mt-0.5" />
                       <span className="text-[#A7ACBF]">{point}</span>
                     </li>
                   ))}

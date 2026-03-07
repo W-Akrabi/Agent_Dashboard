@@ -24,7 +24,7 @@ const COLUMNS: {
 ];
 
 const COLUMN_STYLES: Record<WorkshopTaskStatus, { header: string; badge: string }> = {
-  backlog:     { header: 'border-[#4F46E5]/30', badge: 'bg-[#4F46E5]/15 text-[#D6D3FF]' },
+  backlog:     { header: 'border-brand/30', badge: 'bg-brand/15 text-[#D6D3FF]' },
   in_progress: { header: 'border-amber-500/30', badge: 'bg-amber-500/15 text-amber-300' },
   done:        { header: 'border-emerald-500/30', badge: 'bg-emerald-500/15 text-emerald-300' },
 };
@@ -91,7 +91,7 @@ function AddTaskModal({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="What needs to be done?"
-              className="w-full rounded-lg border border-white/10 bg-[#05060B]/70 px-3 py-2.5 text-sm text-[#F4F6FF] placeholder:text-[#555870] focus:border-[#4F46E5]/70 focus:outline-none"
+              className="w-full rounded-lg border border-white/10 bg-[#05060B]/70 px-3 py-2.5 text-sm text-[#F4F6FF] placeholder:text-[#555870] focus:border-brand/70 focus:outline-none"
             />
           </div>
 
@@ -102,7 +102,7 @@ function AddTaskModal({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Optional details…"
-              className="w-full resize-none rounded-lg border border-white/10 bg-[#05060B]/70 px-3 py-2.5 text-sm text-[#F4F6FF] placeholder:text-[#555870] focus:border-[#4F46E5]/70 focus:outline-none"
+              className="w-full resize-none rounded-lg border border-white/10 bg-[#05060B]/70 px-3 py-2.5 text-sm text-[#F4F6FF] placeholder:text-[#555870] focus:border-brand/70 focus:outline-none"
             />
           </div>
 
@@ -111,7 +111,7 @@ function AddTaskModal({
             <select
               value={agentId}
               onChange={(e) => setAgentId(e.target.value)}
-              className="w-full rounded-lg border border-white/10 bg-[#05060B]/70 px-3 py-2.5 text-sm text-[#F4F6FF] focus:border-[#4F46E5]/70 focus:outline-none"
+              className="w-full rounded-lg border border-white/10 bg-[#05060B]/70 px-3 py-2.5 text-sm text-[#F4F6FF] focus:border-brand/70 focus:outline-none"
             >
               <option value="">Unassigned</option>
               {agents.map((a) => (
@@ -133,7 +133,7 @@ function AddTaskModal({
             <button
               type="submit"
               disabled={!title.trim() || saving}
-              className="flex-1 rounded-lg bg-[#4F46E5] py-2 text-sm font-medium text-white hover:bg-[#5B52EC] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="flex-1 rounded-lg bg-brand py-2 text-sm font-medium text-white hover:bg-brand-light disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {saving ? 'Creating…' : 'Create Task'}
             </button>
@@ -179,7 +179,7 @@ function TaskCard({
 
       <div className="flex items-center justify-between gap-2">
         {task.agentName ? (
-          <span className="flex items-center gap-1 rounded-full bg-[#4F46E5]/15 px-2 py-0.5 text-[10px] font-medium text-[#D6D3FF] min-w-0">
+          <span className="flex items-center gap-1 rounded-full bg-brand/15 px-2 py-0.5 text-[10px] font-medium text-[#D6D3FF] min-w-0">
             <Bot className="w-3 h-3 shrink-0" />
             <span className="truncate">{task.agentName}</span>
           </span>
@@ -294,7 +294,7 @@ export const Workshop: React.FC = () => {
         </div>
         <button
           onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-1.5 rounded-lg bg-[#4F46E5] px-3 py-2 text-sm font-medium text-white hover:bg-[#5B52EC] transition-colors shrink-0"
+          className="flex items-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-sm font-medium text-white hover:bg-brand-light transition-colors shrink-0"
         >
           <Plus className="w-4 h-4" />
           New Task

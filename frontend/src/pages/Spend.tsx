@@ -152,8 +152,8 @@ export default function Spend() {
         <div className="data-card p-5">
           <div className="flex items-center justify-between mb-3">
             <span className="text-[#A7ACBF] text-sm">This Month</span>
-            <div className="w-8 h-8 rounded-lg bg-[#4F46E5]/20 flex items-center justify-center">
-              <TrendingUp className="w-4 h-4 text-[#4F46E5]" />
+            <div className="w-8 h-8 rounded-lg bg-brand/20 flex items-center justify-center">
+              <TrendingUp className="w-4 h-4 text-brand" />
             </div>
           </div>
           <p className="text-2xl font-bold">${spendData.monthly.toFixed(2)}</p>
@@ -214,14 +214,14 @@ export default function Spend() {
       <div className="data-card p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold">Monthly Budget</h3>
-          <span className={`text-sm font-medium ${budgetPercent >= 80 ? 'text-orange-400' : 'text-[#4F46E5]'}`}>
+          <span className={`text-sm font-medium ${budgetPercent >= 80 ? 'text-orange-400' : 'text-brand'}`}>
             {budgetPercent.toFixed(0)}% used
           </span>
         </div>
         <div className="h-3 bg-white/10 rounded-full overflow-hidden">
           <div
             className={`h-full rounded-full transition-all duration-500 ${
-              budgetPercent >= 80 ? 'bg-gradient-to-r from-orange-500 to-red-500' : 'bg-gradient-to-r from-[#4F46E5] to-[#7C3AED]'
+              budgetPercent >= 80 ? 'bg-gradient-to-r from-orange-500 to-red-500' : 'bg-gradient-to-r from-brand to-brand-secondary'
             }`}
             style={{ width: `${Math.min(budgetPercent, 100)}%` }}
           />
@@ -256,7 +256,7 @@ export default function Spend() {
                   </div>
                   <div className="h-2 bg-white/10 rounded-full overflow-hidden ml-9">
                     <div
-                      className="h-full bg-gradient-to-r from-[#4F46E5] to-[#7C3AED] rounded-full"
+                      className="h-full bg-gradient-to-r from-brand to-brand-secondary rounded-full"
                       style={{ width: `${percent}%` }}
                     />
                   </div>

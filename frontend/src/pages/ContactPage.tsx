@@ -8,7 +8,7 @@ export default function ContactPage() {
       {/* Hero */}
       <section className="py-24 md:py-32 relative">
         <div className="max-w-4xl mx-auto px-6 text-center">
-          <span className="eyebrow text-[#4F46E5] mb-4 block">Contact</span>
+          <span className="eyebrow text-brand mb-4 block">Contact</span>
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6">
             Let's talk.
           </h1>
@@ -50,14 +50,14 @@ export default function ContactPage() {
               },
             ].map((item) => (
               <div key={item.title} className="data-card p-6 flex flex-col">
-                <div className="w-10 h-10 rounded-lg bg-[#4F46E5]/20 flex items-center justify-center mb-4">
-                  <item.icon className="w-5 h-5 text-[#4F46E5]" />
+                <div className="w-10 h-10 rounded-lg bg-brand/20 flex items-center justify-center mb-4">
+                  <item.icon className="w-5 h-5 text-brand" />
                 </div>
                 <h2 className="font-semibold mb-2">{item.title}</h2>
                 <p className="text-sm text-[#A7ACBF] mb-6 flex-1">{item.desc}</p>
                 <a
                   href={item.href.startsWith('mailto') ? item.href : undefined}
-                  className="inline-flex items-center gap-2 text-sm text-[#4F46E5] hover:gap-3 transition-all font-medium"
+                  className="inline-flex items-center gap-2 text-sm text-brand hover:gap-3 transition-all font-medium"
                   {...(item.href.startsWith('/') ? {} : {})}
                 >
                   {item.label} <ArrowRight className="w-4 h-4" />
@@ -74,7 +74,7 @@ export default function ContactPage() {
               <div className="space-y-6">
                 <div>
                   <h3 className="font-medium mb-2 flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-[#4F46E5]" />
+                    <Clock className="w-4 h-4 text-brand" />
                     Response times
                   </h3>
                   <div className="space-y-2 text-sm text-[#A7ACBF]">
@@ -95,7 +95,7 @@ export default function ContactPage() {
                     ].map((item) => (
                       <div key={item.q} className="flex items-center justify-between py-2 border-b border-white/5">
                         <span className="text-sm text-[#A7ACBF]">{item.q}</span>
-                        <Link to={item.link} className="text-xs text-[#4F46E5] hover:underline whitespace-nowrap ml-4">
+                        <Link to={item.link} className="text-xs text-brand hover:underline whitespace-nowrap ml-4">
                           {item.label}
                         </Link>
                       </div>
@@ -111,7 +111,7 @@ export default function ContactPage() {
                   </p>
                   <a
                     href="mailto:enterprise@jarvisctl.io"
-                    className="inline-flex items-center gap-2 text-sm text-[#4F46E5] font-medium hover:underline"
+                    className="inline-flex items-center gap-2 text-sm text-brand font-medium hover:underline"
                   >
                     enterprise@jarvisctl.io <ArrowRight className="w-4 h-4" />
                   </a>
@@ -128,7 +128,7 @@ export default function ContactPage() {
                   <input
                     type="text"
                     placeholder="Your name"
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-[#4F46E5] text-sm"
+                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-brand text-sm"
                   />
                 </div>
                 <div>
@@ -136,12 +136,12 @@ export default function ContactPage() {
                   <input
                     type="email"
                     placeholder="you@company.com"
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-[#4F46E5] text-sm"
+                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-brand text-sm"
                   />
                 </div>
                 <div>
                   <label className="block text-sm text-[#A7ACBF] mb-2">Subject</label>
-                  <select className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-[#4F46E5] text-sm text-[#F4F6FF]">
+                  <select className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-brand text-sm text-[#F4F6FF]">
                     <option value="" className="bg-[#0B0E16]">Select a topic</option>
                     <option value="general" className="bg-[#0B0E16]">General question</option>
                     <option value="support" className="bg-[#0B0E16]">Technical support</option>
@@ -155,7 +155,7 @@ export default function ContactPage() {
                   <textarea
                     rows={5}
                     placeholder="Tell us what you need..."
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-[#4F46E5] text-sm resize-none"
+                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-brand text-sm resize-none"
                   />
                 </div>
                 <a
@@ -166,7 +166,7 @@ export default function ContactPage() {
                 </a>
                 <p className="text-xs text-[#A7ACBF] text-center">
                   Or email us directly at{' '}
-                  <a href="mailto:support@jarvisctl.io" className="text-[#4F46E5] hover:underline">
+                  <a href="mailto:support@jarvisctl.io" className="text-brand hover:underline">
                     support@jarvisctl.io
                   </a>
                 </p>

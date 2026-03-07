@@ -125,7 +125,7 @@ export default function Inbox() {
               key={f}
               onClick={() => setFilter(f)}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-all capitalize ${
-                filter === f ? 'bg-[#4F46E5] text-white' : 'text-[#A7ACBF] hover:text-white hover:bg-white/5'
+                filter === f ? 'bg-brand text-white' : 'text-[#A7ACBF] hover:text-white hover:bg-white/5'
               }`}
             >
               {f}
@@ -138,7 +138,7 @@ export default function Inbox() {
         {filteredItems.length === 0 ? (
           <div className="data-card p-12 text-center">
             <div className="flex items-center justify-center mx-auto mb-4">
-              <SuccessIcon size={64} color="#4F46E5" />
+              <SuccessIcon size={64} color="var(--brand-hex)" />
             </div>
             <h3 className="text-lg font-medium mb-2">All caught up!</h3>
             <p className="text-[#A7ACBF]">No {filter !== 'all' ? filter : ''} approvals to review.</p>
@@ -152,8 +152,8 @@ export default function Inbox() {
               <div key={item.id} className="data-card p-6">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-[#4F46E5]/20 flex items-center justify-center">
-                      <Bot className="w-6 h-6 text-[#4F46E5]" />
+                    <div className="w-12 h-12 rounded-xl bg-brand/20 flex items-center justify-center">
+                      <Bot className="w-6 h-6 text-brand" />
                     </div>
                     <div>
                       <h3 className="font-medium">{item.agentName}</h3>
@@ -180,8 +180,8 @@ export default function Inbox() {
                   </ul>
                 </div>
 
-                <div className="p-4 rounded-lg bg-[#4F46E5]/10 border border-[#4F46E5]/30 mb-4">
-                  <p className="text-xs text-[#4F46E5] mb-2 uppercase tracking-wider">Proposed Next Action</p>
+                <div className="p-4 rounded-lg bg-brand/10 border border-brand/30 mb-4">
+                  <p className="text-xs text-brand mb-2 uppercase tracking-wider">Proposed Next Action</p>
                   <p className="font-medium">{item.proposedAction}</p>
                 </div>
 
@@ -201,7 +201,7 @@ export default function Inbox() {
                           placeholder="Add a comment (optional)..."
                           value={comment}
                           onChange={(event) => setComment(event.target.value)}
-                          className="flex-1 px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-sm focus:outline-none focus:border-[#4F46E5]"
+                          className="flex-1 px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-sm focus:outline-none focus:border-brand"
                         />
                       </div>
                     )}

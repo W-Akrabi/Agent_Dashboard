@@ -14,7 +14,7 @@ export const Memory: React.FC = () => (
           key={entry.id}
           className="rounded-xl border border-white/10 bg-[#0B0E16]/80 p-4 shadow-[0_12px_30px_rgba(0,0,0,0.35)] backdrop-blur-sm"
         >
-          <span className="inline-flex rounded-full border border-[#4F46E5]/40 bg-[#4F46E5]/15 px-2.5 py-1 text-xs font-medium text-[#D6D3FF]">
+          <span className="inline-flex rounded-full border border-brand/40 bg-brand/15 px-2.5 py-1 text-xs font-medium text-[#D6D3FF]">
             {entry.tag}
           </span>
           <p className="mt-3 text-sm leading-relaxed text-[#F4F6FF]">{entry.content}</p>

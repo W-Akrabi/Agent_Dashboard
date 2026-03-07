@@ -18,7 +18,7 @@ export default function ApprovalsPage() {
       <section className="py-24 md:py-32 relative">
         <div className="max-w-7xl mx-auto px-6">
           <div className="max-w-3xl mx-auto text-center mb-20">
-            <span className="eyebrow text-[#4F46E5] mb-4 block">Approvals</span>
+            <span className="eyebrow text-brand mb-4 block">Approvals</span>
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6">
               Your agent pauses.
               <br />
@@ -43,8 +43,8 @@ export default function ApprovalsPage() {
           <div className="max-w-md mx-auto">
             <div className="data-card p-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-lg bg-[#4F46E5]/20 flex items-center justify-center">
-                  <Bot className="w-5 h-5 text-[#4F46E5]" />
+                <div className="w-10 h-10 rounded-lg bg-brand/20 flex items-center justify-center">
+                  <Bot className="w-5 h-5 text-brand" />
                 </div>
                 <div>
                   <p className="font-medium font-mono">ops-agent</p>
@@ -67,8 +67,8 @@ export default function ApprovalsPage() {
               <p className="text-xs text-[#A7ACBF] uppercase tracking-widest mb-3">
                 Proposed next action
               </p>
-              <div className="flex items-start gap-2 mb-6 p-3 rounded-lg border border-[#4F46E5]/30 bg-[#4F46E5]/5">
-                <ArrowRight className="w-4 h-4 text-[#4F46E5] mt-0.5 shrink-0" />
+              <div className="flex items-start gap-2 mb-6 p-3 rounded-lg border border-brand/30 bg-brand/5">
+                <ArrowRight className="w-4 h-4 text-brand mt-0.5 shrink-0" />
                 <span className="text-sm">Send marketing email to 312 recipients</span>
               </div>
 
@@ -89,7 +89,7 @@ export default function ApprovalsPage() {
       <section className="py-24 md:py-32 relative border-t border-white/5">
         <div className="max-w-7xl mx-auto px-6">
           <div className="max-w-2xl mx-auto text-center mb-16">
-            <span className="eyebrow text-[#4F46E5] mb-4 block">How it works</span>
+            <span className="eyebrow text-brand mb-4 block">How it works</span>
             <h2 className="text-3xl md:text-4xl font-bold">Four steps. Zero webhooks.</h2>
           </div>
 
@@ -124,7 +124,7 @@ export default function ApprovalsPage() {
             ].map((item) => (
               <div key={item.step} className="data-card p-6">
                 <div className="flex gap-4">
-                  <span className="text-3xl font-bold text-[#4F46E5]/30 font-mono shrink-0 w-10">
+                  <span className="text-3xl font-bold text-brand/30 font-mono shrink-0 w-10">
                     {item.step}
                   </span>
                   <div className="flex-1">
@@ -186,8 +186,8 @@ export default function ApprovalsPage() {
               },
             ].map((item) => (
               <div key={item.title} className="data-card p-6">
-                <div className="w-10 h-10 rounded-lg bg-[#4F46E5]/20 flex items-center justify-center mb-4">
-                  <item.icon className="w-5 h-5 text-[#4F46E5]" />
+                <div className="w-10 h-10 rounded-lg bg-brand/20 flex items-center justify-center mb-4">
+                  <item.icon className="w-5 h-5 text-brand" />
                 </div>
                 <h3 className="font-semibold mb-2">{item.title}</h3>
                 <p className="text-sm text-[#A7ACBF]">{item.desc}</p>

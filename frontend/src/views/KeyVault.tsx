@@ -56,7 +56,7 @@ function AddSecretModal({
       <div className="w-full max-w-md rounded-xl border border-white/10 bg-[#0B0E16] shadow-2xl">
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
           <div className="flex items-center gap-2">
-            <Lock className="w-4 h-4 text-[#4F46E5]" />
+            <Lock className="w-4 h-4 text-brand" />
             <h3 className="text-sm font-semibold text-white">Add Secret</h3>
           </div>
           <button onClick={onClose} className="text-[#A7ACBF] hover:text-white transition-colors">
@@ -72,7 +72,7 @@ function AddSecretModal({
               value={name}
               onChange={(e) => handleNameChange(e.target.value)}
               placeholder="e.g. OpenAI API Key"
-              className="w-full rounded-lg border border-white/10 bg-[#05060B]/70 px-3 py-2.5 text-sm text-[#F4F6FF] placeholder:text-[#555870] focus:border-[#4F46E5]/70 focus:outline-none"
+              className="w-full rounded-lg border border-white/10 bg-[#05060B]/70 px-3 py-2.5 text-sm text-[#F4F6FF] placeholder:text-[#555870] focus:border-brand/70 focus:outline-none"
             />
           </div>
 
@@ -85,7 +85,7 @@ function AddSecretModal({
               value={keyName}
               onChange={(e) => setKeyName(e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, ''))}
               placeholder="OPENAI_API_KEY"
-              className="w-full rounded-lg border border-white/10 bg-[#05060B]/70 px-3 py-2.5 text-sm text-[#F4F6FF] placeholder:text-[#555870] font-mono focus:border-[#4F46E5]/70 focus:outline-none"
+              className="w-full rounded-lg border border-white/10 bg-[#05060B]/70 px-3 py-2.5 text-sm text-[#F4F6FF] placeholder:text-[#555870] font-mono focus:border-brand/70 focus:outline-none"
             />
           </div>
 
@@ -97,7 +97,7 @@ function AddSecretModal({
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
                 placeholder="Paste your secret here…"
-                className="w-full rounded-lg border border-white/10 bg-[#05060B]/70 px-3 py-2.5 pr-10 text-sm text-[#F4F6FF] placeholder:text-[#555870] focus:border-[#4F46E5]/70 focus:outline-none font-mono"
+                className="w-full rounded-lg border border-white/10 bg-[#05060B]/70 px-3 py-2.5 pr-10 text-sm text-[#F4F6FF] placeholder:text-[#555870] focus:border-brand/70 focus:outline-none font-mono"
               />
               <button
                 type="button"
@@ -125,7 +125,7 @@ function AddSecretModal({
             <button
               type="submit"
               disabled={!name.trim() || !keyName.trim() || !value.trim() || saving}
-              className="flex-1 rounded-lg bg-[#4F46E5] py-2 text-sm font-medium text-white hover:bg-[#5B52EC] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="flex-1 rounded-lg bg-brand py-2 text-sm font-medium text-white hover:bg-brand-light disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {saving ? 'Encrypting…' : 'Save Secret'}
             </button>
@@ -204,12 +204,12 @@ function SecretRow({
     <div className="rounded-xl border border-white/8 bg-[#05060B]/60 p-4 hover:border-white/15 transition-colors">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-8 h-8 rounded-lg bg-[#4F46E5]/15 border border-[#4F46E5]/20 flex items-center justify-center flex-shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-brand/15 border border-brand/20 flex items-center justify-center flex-shrink-0">
             <KeyRound className="w-4 h-4 text-[#A5B4FC]" />
           </div>
           <div className="min-w-0">
             <p className="text-sm font-medium text-[#F4F6FF] truncate">{secret.name}</p>
-            <code className="text-[10px] text-[#4F46E5] font-mono">{secret.keyName}</code>
+            <code className="text-[10px] text-brand font-mono">{secret.keyName}</code>
           </div>
         </div>
 
@@ -322,7 +322,7 @@ export const KeyVault: React.FC = () => {
         </div>
         <button
           onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-1.5 rounded-lg bg-[#4F46E5] px-3 py-2 text-sm font-medium text-white hover:bg-[#5B52EC] transition-colors shrink-0"
+          className="flex items-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-sm font-medium text-white hover:bg-brand-light transition-colors shrink-0"
         >
           <Plus className="w-4 h-4" />
           Add Secret
@@ -330,7 +330,7 @@ export const KeyVault: React.FC = () => {
       </header>
 
       {/* Security info banner */}
-      <div className="rounded-xl border border-[#4F46E5]/20 bg-[#4F46E5]/8 p-4 flex items-start gap-3">
+      <div className="rounded-xl border border-brand/20 bg-brand/8 p-4 flex items-start gap-3">
         <ShieldCheck className="w-5 h-5 text-[#818CF8] mt-0.5 flex-shrink-0" />
         <div>
           <p className="text-sm font-medium text-[#E0E7FF]">AES-256 Encryption at Rest</p>
@@ -355,7 +355,7 @@ export const KeyVault: React.FC = () => {
         </div>
       ) : secrets.length === 0 ? (
         <div className="rounded-xl border border-dashed border-white/10 bg-[#0B0E16]/40 p-10 flex flex-col items-center gap-3 text-center">
-          <div className="w-12 h-12 rounded-xl bg-[#4F46E5]/10 border border-[#4F46E5]/20 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-xl bg-brand/10 border border-brand/20 flex items-center justify-center">
             <KeyRound className="w-6 h-6 text-[#818CF8]" />
           </div>
           <div>
@@ -366,7 +366,7 @@ export const KeyVault: React.FC = () => {
           </div>
           <button
             onClick={() => setShowAddModal(true)}
-            className="mt-1 flex items-center gap-1.5 rounded-lg bg-[#4F46E5] px-3 py-2 text-sm font-medium text-white hover:bg-[#5B52EC] transition-colors"
+            className="mt-1 flex items-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-sm font-medium text-white hover:bg-brand-light transition-colors"
           >
             <Plus className="w-4 h-4" />
             Add Secret

@@ -52,7 +52,7 @@ function AgentListItem({
       onClick={onClick}
       className={`w-full text-left rounded-lg px-3 py-2.5 transition-colors ${
         selected
-          ? 'bg-[#4F46E5]/20 border border-[#4F46E5]/40'
+          ? 'bg-brand/20 border border-brand/40'
           : 'hover:bg-white/5 border border-transparent'
       }`}
     >
@@ -101,7 +101,7 @@ function MessageBubble({ msg }: { msg: CommsMessage }) {
       <div
         className={`rounded-xl border px-4 py-3 ${
           isHuman
-            ? 'border-[#4F46E5]/40 bg-[#4F46E5]/15 text-[#E0DDFF]'
+            ? 'border-brand/40 bg-brand/15 text-[#E0DDFF]'
             : 'border-white/10 bg-[#05060B]/80 text-[#F4F6FF]'
         }`}
       >
@@ -441,12 +441,12 @@ export const CommsHub: React.FC = () => {
                 disabled={!selectedId || sending}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={onKeyDown}
-                className="flex-1 resize-none rounded-lg border border-white/10 bg-[#05060B]/70 px-3 py-2.5 text-sm text-[#F4F6FF] placeholder:text-[#7D8293] focus:border-[#4F46E5]/70 focus:outline-none disabled:opacity-50"
+                className="flex-1 resize-none rounded-lg border border-white/10 bg-[#05060B]/70 px-3 py-2.5 text-sm text-[#F4F6FF] placeholder:text-[#7D8293] focus:border-brand/70 focus:outline-none disabled:opacity-50"
               />
               <button
                 onClick={() => { void send(); }}
                 disabled={!input.trim() || !selectedId || sending}
-                className="h-[52px] rounded-lg bg-[#4F46E5] px-5 text-sm font-medium text-white transition-colors hover:bg-[#5B52EC] disabled:cursor-not-allowed disabled:opacity-50"
+                className="h-[52px] rounded-lg bg-brand px-5 text-sm font-medium text-white transition-colors hover:bg-brand-light disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {sending ? '…' : 'Send'}
               </button>

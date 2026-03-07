@@ -63,15 +63,15 @@ export default function AuthPage() {
         <div className="w-full max-w-md">
           {/* Logo */}
           <div className="flex items-center justify-center gap-3 mb-8">
-            <div className="w-10 h-10 rounded-lg bg-[#4F46E5] flex items-center justify-center">
+            <div className="w-10 h-10 rounded-lg bg-brand flex items-center justify-center">
               <Bot className="w-6 h-6 text-white" />
             </div>
             <span className="font-bold text-2xl tracking-tight">JARVIS</span>
           </div>
 
           <div className="data-card p-8 bg-[#0B0E16] text-center">
-            <div className="w-16 h-16 rounded-full bg-[#4F46E5]/20 border border-[#4F46E5]/30 flex items-center justify-center mx-auto mb-6">
-              <Mail className="w-8 h-8 text-[#4F46E5]" />
+            <div className="w-16 h-16 rounded-full bg-brand/20 border border-brand/30 flex items-center justify-center mx-auto mb-6">
+              <Mail className="w-8 h-8 text-brand" />
             </div>
 
             <h2 className="text-xl font-semibold mb-2">Check your email</h2>
@@ -89,7 +89,7 @@ export default function AuthPage() {
               <button
                 type="button"
                 onClick={handleResend}
-                className="text-[#4F46E5] hover:text-[#6366F1] text-sm font-medium transition-colors"
+                className="text-brand hover:text-[#6366F1] text-sm font-medium transition-colors"
               >
                 Resend email
               </button>
@@ -113,7 +113,7 @@ export default function AuthPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="w-10 h-10 rounded-lg bg-[#4F46E5] flex items-center justify-center">
+          <div className="w-10 h-10 rounded-lg bg-brand flex items-center justify-center">
             <Bot className="w-6 h-6 text-white" />
           </div>
           <span className="font-bold text-2xl tracking-tight">JARVIS</span>
@@ -127,7 +127,7 @@ export default function AuthPage() {
               onClick={() => { setMode('login'); setError(''); }}
               className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
                 mode === 'login'
-                  ? 'bg-[#4F46E5] text-white'
+                  ? 'bg-brand text-white'
                   : 'text-[#A7ACBF] hover:text-white'
               }`}
             >
@@ -138,7 +138,7 @@ export default function AuthPage() {
               onClick={() => { setMode('signup'); setError(''); }}
               className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
                 mode === 'signup'
-                  ? 'bg-[#4F46E5] text-white'
+                  ? 'bg-brand text-white'
                   : 'text-[#A7ACBF] hover:text-white'
               }`}
             >
@@ -158,7 +158,7 @@ export default function AuthPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
-                  className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-10 pr-4 text-sm placeholder-[#5A5F7A] focus:outline-none focus:border-[#4F46E5] transition-colors"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-10 pr-4 text-sm placeholder-[#5A5F7A] focus:outline-none focus:border-brand transition-colors"
                 />
               </div>
             </div>
@@ -175,7 +175,7 @@ export default function AuthPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-10 pr-4 text-sm placeholder-[#5A5F7A] focus:outline-none focus:border-[#4F46E5] transition-colors"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-10 pr-4 text-sm placeholder-[#5A5F7A] focus:outline-none focus:border-brand transition-colors"
                 />
               </div>
             </div>
@@ -193,7 +193,7 @@ export default function AuthPage() {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-10 pr-4 text-sm placeholder-[#5A5F7A] focus:outline-none focus:border-[#4F46E5] transition-colors"
+                    className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-10 pr-4 text-sm placeholder-[#5A5F7A] focus:outline-none focus:border-brand transition-colors"
                   />
                 </div>
               </div>

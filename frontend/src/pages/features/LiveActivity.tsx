@@ -69,7 +69,7 @@ export default function LiveActivityPage() {
       <section className="py-24 md:py-32 relative">
         <div className="max-w-7xl mx-auto px-6">
           <div className="max-w-3xl mx-auto text-center mb-20">
-            <span className="eyebrow text-[#4F46E5] mb-4 block">Live Activity</span>
+            <span className="eyebrow text-brand mb-4 block">Live Activity</span>
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6">
               Every action. Every cost.
               <br />
@@ -98,8 +98,8 @@ export default function LiveActivityPage() {
                   title: 'tool_call',
                   description: 'code-agent — write_file /src/auth.ts',
                   date: '8 min ago',
-                  iconClassName: 'text-[#4F46E5]',
-                  titleClassName: 'text-[#4F46E5]',
+                  iconClassName: 'text-brand',
+                  titleClassName: 'text-brand',
                 },
                 {
                   icon: <CheckCircle className="w-4 h-4" />,
@@ -127,7 +127,7 @@ export default function LiveActivityPage() {
       <section className="py-24 md:py-32 relative border-t border-white/5">
         <div className="max-w-7xl mx-auto px-6">
           <div className="max-w-2xl mx-auto text-center mb-16">
-            <span className="eyebrow text-[#4F46E5] mb-4 block">Event Types</span>
+            <span className="eyebrow text-brand mb-4 block">Event Types</span>
             <h2 className="text-3xl md:text-4xl font-bold">Five types. One unified feed.</h2>
             <p className="text-[#A7ACBF] mt-4">
               Every event shares the same schema — type, message, cost — so your feed is always
@@ -156,15 +156,15 @@ export default function LiveActivityPage() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-start">
             <div>
-              <span className="eyebrow text-[#4F46E5] mb-4 block">How it works</span>
+              <span className="eyebrow text-brand mb-4 block">How it works</span>
               <h2 className="text-3xl md:text-4xl font-bold mb-6">One POST. Instant visibility.</h2>
               <p className="text-[#A7ACBF] text-lg mb-8">
                 Your agent calls{' '}
-                <code className="text-[#4F46E5] bg-white/5 px-1.5 rounded">POST /v1/events</code>{' '}
+                <code className="text-brand bg-white/5 px-1.5 rounded">POST /v1/events</code>{' '}
                 with an{' '}
-                <code className="text-[#4F46E5] bg-white/5 px-1.5 rounded">X-Agent-Token</code>{' '}
+                <code className="text-brand bg-white/5 px-1.5 rounded">X-Agent-Token</code>{' '}
                 header. Jarvis stores the event, updates the agent's{' '}
-                <code className="text-[#4F46E5] bg-white/5 px-1.5 rounded">last_seen_at</code> and
+                <code className="text-brand bg-white/5 px-1.5 rounded">last_seen_at</code> and
                 status, aggregates the cost, and streams it live to your dashboard.
               </p>
               <div className="space-y-5">
@@ -191,8 +191,8 @@ export default function LiveActivityPage() {
                   },
                 ].map((item) => (
                   <div key={item.label} className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-[#4F46E5]/10 flex items-center justify-center shrink-0 mt-0.5">
-                      <item.icon className="w-4 h-4 text-[#4F46E5]" />
+                    <div className="w-8 h-8 rounded-lg bg-brand/10 flex items-center justify-center shrink-0 mt-0.5">
+                      <item.icon className="w-4 h-4 text-brand" />
                     </div>
                     <div>
                       <p className="font-medium text-sm">{item.label}</p>

@@ -33,7 +33,7 @@ export default function DocsPage() {
               <div className="pt-4 border-t border-white/5 mt-4">
                 <Link
                   to="/auth"
-                  className="flex items-center gap-2 px-3 py-2 text-sm text-[#4F46E5] hover:underline"
+                  className="flex items-center gap-2 px-3 py-2 text-sm text-brand hover:underline"
                 >
                   Open dashboard <ArrowRight className="w-3 h-3" />
                 </Link>
@@ -51,7 +51,7 @@ export default function DocsPage() {
           <main className="space-y-20 min-w-0">
             {/* Title */}
             <div>
-              <span className="eyebrow text-[#4F46E5] mb-4 block">Documentation</span>
+              <span className="eyebrow text-brand mb-4 block">Documentation</span>
               <h1 className="text-4xl md:text-5xl font-bold mb-4">Jarvis Mission Control</h1>
               <p className="text-[#A7ACBF] text-lg">
                 Everything you need to connect your agents, stream events, gate approvals, and track spend.
@@ -61,8 +61,8 @@ export default function DocsPage() {
             {/* Quick Start */}
             <section id="quickstart">
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-8 h-8 rounded-lg bg-[#4F46E5]/20 flex items-center justify-center">
-                  <Zap className="w-4 h-4 text-[#4F46E5]" />
+                <div className="w-8 h-8 rounded-lg bg-brand/20 flex items-center justify-center">
+                  <Zap className="w-4 h-4 text-brand" />
                 </div>
                 <h2 className="text-2xl font-bold">Quick Start</h2>
               </div>
@@ -97,7 +97,7 @@ curl -X POST https://your-instance.com/v1/events \\
                 ].map((item) => (
                   <div key={item.step} className="data-card p-6">
                     <div className="flex gap-4">
-                      <span className="text-2xl font-bold text-[#4F46E5]/40 font-mono shrink-0 w-6">
+                      <span className="text-2xl font-bold text-brand/40 font-mono shrink-0 w-6">
                         {item.step}
                       </span>
                       <div className="flex-1">
@@ -118,17 +118,17 @@ curl -X POST https://your-instance.com/v1/events \\
             {/* MCP Server */}
             <section id="mcp">
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-8 h-8 rounded-lg bg-[#4F46E5]/20 flex items-center justify-center">
-                  <Terminal className="w-4 h-4 text-[#4F46E5]" />
+                <div className="w-8 h-8 rounded-lg bg-brand/20 flex items-center justify-center">
+                  <Terminal className="w-4 h-4 text-brand" />
                 </div>
                 <h2 className="text-2xl font-bold">MCP Server</h2>
               </div>
               <p className="text-[#A7ACBF] mb-6">
                 The Jarvis MCP server exposes four tools —{' '}
-                <code className="text-[#4F46E5] bg-white/5 px-1.5 rounded">log_action</code>,{' '}
-                <code className="text-[#4F46E5] bg-white/5 px-1.5 rounded">request_approval</code>,{' '}
-                <code className="text-[#4F46E5] bg-white/5 px-1.5 rounded">fetch_human_messages</code>, and{' '}
-                <code className="text-[#4F46E5] bg-white/5 px-1.5 rounded">send_human_reply</code> —
+                <code className="text-brand bg-white/5 px-1.5 rounded">log_action</code>,{' '}
+                <code className="text-brand bg-white/5 px-1.5 rounded">request_approval</code>,{' '}
+                <code className="text-brand bg-white/5 px-1.5 rounded">fetch_human_messages</code>, and{' '}
+                <code className="text-brand bg-white/5 px-1.5 rounded">send_human_reply</code> —
                 to any MCP-compatible agent: Claude Code, Codex CLI, Cursor, Windsurf, or custom agents
                 using the OpenAI Agents SDK.
               </p>
@@ -136,7 +136,7 @@ curl -X POST https://your-instance.com/v1/events \\
               <div className="space-y-6">
                 <div className="data-card p-6">
                   <div className="flex items-center gap-2 mb-4">
-                    <Package className="w-4 h-4 text-[#4F46E5]" />
+                    <Package className="w-4 h-4 text-brand" />
                     <h3 className="font-semibold">Installation</h3>
                   </div>
                   <pre className="text-sm font-mono text-[#F4F6FF] bg-white/5 rounded-lg p-4 mb-4 overflow-x-auto whitespace-pre">pip install jarvis-mc-mcp</pre>
@@ -144,7 +144,7 @@ curl -X POST https://your-instance.com/v1/events \\
 
                 <div className="data-card p-6">
                   <h3 className="font-semibold mb-4 flex items-center gap-2">
-                    <Bot className="w-4 h-4 text-[#4F46E5]" />
+                    <Bot className="w-4 h-4 text-brand" />
                     Claude Code
                   </h3>
                   <pre className="text-sm font-mono text-[#F4F6FF] bg-white/5 rounded-lg p-4 overflow-x-auto whitespace-pre">{`claude mcp add jarvis \\
@@ -152,14 +152,14 @@ curl -X POST https://your-instance.com/v1/events \\
   -e JARVIS_URL=https://your-instance.com \\
   -- jarvis-mcp`}</pre>
                   <p className="text-xs text-[#A7ACBF] mt-3">
-                    Claude will now have access to <code className="text-[#4F46E5]">log_action</code> and{' '}
-                    <code className="text-[#4F46E5]">request_approval</code> tools.
+                    Claude will now have access to <code className="text-brand">log_action</code> and{' '}
+                    <code className="text-brand">request_approval</code> tools.
                   </p>
                 </div>
 
                 <div className="data-card p-6">
                   <h3 className="font-semibold mb-4 flex items-center gap-2">
-                    <Terminal className="w-4 h-4 text-[#4F46E5]" />
+                    <Terminal className="w-4 h-4 text-brand" />
                     Codex CLI
                   </h3>
                   <pre className="text-sm font-mono text-[#F4F6FF] bg-white/5 rounded-lg p-4 overflow-x-auto whitespace-pre">{`codex mcp add jarvis \\
@@ -170,7 +170,7 @@ curl -X POST https://your-instance.com/v1/events \\
 
                 <div className="data-card p-6">
                   <h3 className="font-semibold mb-4 flex items-center gap-2">
-                    <Code className="w-4 h-4 text-[#4F46E5]" />
+                    <Code className="w-4 h-4 text-brand" />
                     OpenAI Agents SDK
                   </h3>
                   <pre className="text-sm font-mono text-[#F4F6FF] bg-white/5 rounded-lg p-4 overflow-x-auto whitespace-pre">{`from agents.mcp import MCPServerStdio
@@ -205,8 +205,8 @@ agent = Agent(mcp_servers=[jarvis])`}</pre>
             {/* Python SDK */}
             <section id="python-sdk">
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-8 h-8 rounded-lg bg-[#4F46E5]/20 flex items-center justify-center">
-                  <Code className="w-4 h-4 text-[#4F46E5]" />
+                <div className="w-8 h-8 rounded-lg bg-brand/20 flex items-center justify-center">
+                  <Code className="w-4 h-4 text-brand" />
                 </div>
                 <h2 className="text-2xl font-bold">Python SDK</h2>
               </div>
@@ -282,8 +282,8 @@ agent = Agent(
             {/* HTTP API */}
             <section id="http-api">
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-8 h-8 rounded-lg bg-[#4F46E5]/20 flex items-center justify-center">
-                  <Terminal className="w-4 h-4 text-[#4F46E5]" />
+                <div className="w-8 h-8 rounded-lg bg-brand/20 flex items-center justify-center">
+                  <Terminal className="w-4 h-4 text-brand" />
                 </div>
                 <h2 className="text-2xl font-bold">HTTP API</h2>
               </div>
@@ -381,8 +381,8 @@ agent = Agent(
             {/* Event Types reference */}
             <section id="events">
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-8 h-8 rounded-lg bg-[#4F46E5]/20 flex items-center justify-center">
-                  <Zap className="w-4 h-4 text-[#4F46E5]" />
+                <div className="w-8 h-8 rounded-lg bg-brand/20 flex items-center justify-center">
+                  <Zap className="w-4 h-4 text-brand" />
                 </div>
                 <h2 className="text-2xl font-bold">Event Types</h2>
               </div>
@@ -406,7 +406,7 @@ agent = Agent(
                     ].map((row, i) => (
                       <tr key={row.type} className={i % 2 === 0 ? 'bg-white/[0.01]' : ''}>
                         <td className="py-3 px-6">
-                          <code className="text-sm font-mono text-[#4F46E5]">{row.type}</code>
+                          <code className="text-sm font-mono text-brand">{row.type}</code>
                         </td>
                         <td className="py-3 px-6">
                           <span className={`text-${row.color} text-sm`}>{row.color.replace('-400', '')}</span>
@@ -422,8 +422,8 @@ agent = Agent(
             {/* Approvals reference */}
             <section id="approvals">
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-8 h-8 rounded-lg bg-[#4F46E5]/20 flex items-center justify-center">
-                  <Bot className="w-4 h-4 text-[#4F46E5]" />
+                <div className="w-8 h-8 rounded-lg bg-brand/20 flex items-center justify-center">
+                  <Bot className="w-4 h-4 text-brand" />
                 </div>
                 <h2 className="text-2xl font-bold">Approvals</h2>
               </div>
@@ -457,9 +457,9 @@ POST /v1/events
                 <div className="data-card p-6">
                   <h3 className="font-semibold mb-3">2. Poll for the decision</h3>
                   <p className="text-sm text-[#A7ACBF] mb-3">
-                    Poll <code className="text-[#4F46E5]">GET /v1/commands</code> every 3 seconds.
+                    Poll <code className="text-brand">GET /v1/commands</code> every 3 seconds.
                     When a decision arrives, acknowledge it with{' '}
-                    <code className="text-[#4F46E5]">POST /v1/commands/{'{id}'}/ack</code>.
+                    <code className="text-brand">POST /v1/commands/{'{id}'}/ack</code>.
                   </p>
                   <div className="space-y-2">
                     {[
@@ -469,7 +469,7 @@ POST /v1/events
                       'Unacknowledged commands are returned on every poll until acknowledged',
                     ].map((item) => (
                       <div key={item} className="flex items-start gap-2 text-sm">
-                        <CheckCircle className="w-4 h-4 text-[#4F46E5] shrink-0 mt-0.5" />
+                        <CheckCircle className="w-4 h-4 text-brand shrink-0 mt-0.5" />
                         <span className="text-[#A7ACBF]">{item}</span>
                       </div>
                     ))}
@@ -481,15 +481,15 @@ POST /v1/events
             {/* Comms Hub */}
             <section id="comms-hub">
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-8 h-8 rounded-lg bg-[#4F46E5]/20 flex items-center justify-center">
-                  <Bot className="w-4 h-4 text-[#4F46E5]" />
+                <div className="w-8 h-8 rounded-lg bg-brand/20 flex items-center justify-center">
+                  <Bot className="w-4 h-4 text-brand" />
                 </div>
                 <h2 className="text-2xl font-bold">Comms Hub</h2>
               </div>
               <p className="text-[#A7ACBF] mb-6">
                 The Comms Hub gives you a persistent, per-agent chat channel — like a direct line into each agent's work.
                 Messages queue even when the agent is offline or paused. Agents poll for them via the standard commands
-                endpoint and reply via <code className="text-[#4F46E5] bg-white/5 px-1.5 rounded">POST /v1/comms/replies</code>.
+                endpoint and reply via <code className="text-brand bg-white/5 px-1.5 rounded">POST /v1/comms/replies</code>.
               </p>
 
               <div className="space-y-6">
@@ -508,7 +508,7 @@ POST /v1/events
                       'Frontend updates in real-time via Supabase postgres_changes',
                     ].map((step, i) => (
                       <div key={step} className="flex items-start gap-3 text-sm">
-                        <span className="text-[#4F46E5]/60 font-mono shrink-0 w-4">{i + 1}.</span>
+                        <span className="text-brand/60 font-mono shrink-0 w-4">{i + 1}.</span>
                         <span className="text-[#A7ACBF]">{step}</span>
                       </div>
                     ))}
@@ -560,7 +560,7 @@ if msgs:
                       },
                     ].map((tool) => (
                       <div key={tool.name}>
-                        <code className="text-sm text-[#4F46E5] bg-white/5 px-2 py-1 rounded">{tool.name}</code>
+                        <code className="text-sm text-brand bg-white/5 px-2 py-1 rounded">{tool.name}</code>
                         <p className="text-sm text-[#A7ACBF] mt-1">{tool.desc}</p>
                       </div>
                     ))}
@@ -581,7 +581,7 @@ if msgs:
                         <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 ${row.method === 'GET' ? 'bg-sky-500/20 text-sky-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
                           {row.method}
                         </span>
-                        <span className="text-[#4F46E5]">{row.path}</span>
+                        <span className="text-brand">{row.path}</span>
                         <span className="text-[#555870]">({row.auth})</span>
                         <span className="text-[#A7ACBF] text-[11px] w-full mt-0.5 pl-0">{row.desc}</span>
                       </div>
@@ -594,7 +594,7 @@ if msgs:
                   <h3 className="font-semibold mb-3">human_message command kind</h3>
                   <p className="text-sm text-[#A7ACBF] mb-3">
                     When a user sends a message, the backend creates a command with{' '}
-                    <code className="text-[#4F46E5] bg-white/5 px-1.5 rounded">kind: "human_message"</code>.
+                    <code className="text-brand bg-white/5 px-1.5 rounded">kind: "human_message"</code>.
                     Agents filter for these alongside approval_decision commands.
                   </p>
                   <pre className="text-xs font-mono text-[#F4F6FF] bg-white/5 rounded-lg p-4 overflow-x-auto whitespace-pre">{`// GET /v1/commands response item
@@ -619,7 +619,7 @@ if msgs:
                     'Reply metadata fields (cost, model) appear as footer chips in the UI',
                   ].map((item) => (
                     <div key={item} className="flex items-start gap-2 text-sm">
-                      <CheckCircle className="w-4 h-4 text-[#4F46E5] shrink-0 mt-0.5" />
+                      <CheckCircle className="w-4 h-4 text-brand shrink-0 mt-0.5" />
                       <span className="text-[#A7ACBF]">{item}</span>
                     </div>
                   ))}

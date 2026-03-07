@@ -36,7 +36,7 @@ export const Scheduler: React.FC = () => {
                 onChange={() => toggle(job.id)}
                 aria-label={`Toggle ${job.name}`}
               />
-              <span className="absolute inset-0 rounded-full bg-white/15 transition-colors peer-checked:bg-[#4F46E5]" />
+              <span className="absolute inset-0 rounded-full bg-white/15 transition-colors peer-checked:bg-brand" />
               <span className="absolute left-1 h-5 w-5 rounded-full bg-white transition-transform peer-checked:translate-x-5" />
             </label>
           </article>

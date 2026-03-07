@@ -8,7 +8,7 @@ export default function AboutPage() {
       {/* Hero */}
       <section className="py-24 md:py-32 relative">
         <div className="max-w-4xl mx-auto px-6 text-center">
-          <span className="eyebrow text-[#4F46E5] mb-4 block">About</span>
+          <span className="eyebrow text-brand mb-4 block">About</span>
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6">
             Built by engineers
             <br />
@@ -26,7 +26,7 @@ export default function AboutPage() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
             <div>
-              <span className="eyebrow text-[#4F46E5] mb-4 block">The problem</span>
+              <span className="eyebrow text-brand mb-4 block">The problem</span>
               <h2 className="text-3xl md:text-4xl font-bold mb-6">
                 AI agents are powerful. And completely invisible.
               </h2>
@@ -49,7 +49,7 @@ export default function AboutPage() {
             {/* Agent illustrations */}
             <div className="space-y-4">
               {[
-                { icon: Terminal, name: 'code-agent', event: 'tool_call', msg: 'write_file /src/auth.ts — $0.004', color: 'text-[#4F46E5]', bg: 'bg-[#4F46E5]/10' },
+                { icon: Terminal, name: 'code-agent', event: 'tool_call', msg: 'write_file /src/auth.ts — $0.004', color: 'text-brand', bg: 'bg-brand/10' },
                 { icon: Search,   name: 'research-agent', event: 'completion', msg: 'Analysis complete — $0.018', color: 'text-green-400', bg: 'bg-green-400/10' },
                 { icon: Settings, name: 'ops-agent', event: 'approval_request', msg: 'Deploy to production?', color: 'text-orange-400', bg: 'bg-orange-400/10' },
               ].map((item) => (
@@ -75,7 +75,7 @@ export default function AboutPage() {
       <section className="py-24 md:py-32 relative border-t border-white/5">
         <div className="max-w-7xl mx-auto px-6">
           <div className="max-w-3xl mx-auto text-center mb-16">
-            <span className="eyebrow text-[#4F46E5] mb-4 block">Mission</span>
+            <span className="eyebrow text-brand mb-4 block">Mission</span>
             <h2 className="text-3xl md:text-4xl font-bold">
               Every AI agent deserves a mission control.
             </h2>
@@ -100,8 +100,8 @@ export default function AboutPage() {
               },
             ].map((item) => (
               <div key={item.title} className="data-card p-8">
-                <div className="w-12 h-12 rounded-xl bg-[#4F46E5]/20 flex items-center justify-center mb-6">
-                  <item.icon className="w-6 h-6 text-[#4F46E5]" />
+                <div className="w-12 h-12 rounded-xl bg-brand/20 flex items-center justify-center mb-6">
+                  <item.icon className="w-6 h-6 text-brand" />
                 </div>
                 <h3 className="text-xl font-bold mb-4">{item.title}</h3>
                 <p className="text-[#A7ACBF]">{item.desc}</p>
@@ -116,14 +116,14 @@ export default function AboutPage() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
             <div>
-              <span className="eyebrow text-[#4F46E5] mb-4 block">Technology</span>
+              <span className="eyebrow text-brand mb-4 block">Technology</span>
               <h2 className="text-3xl md:text-4xl font-bold mb-6">
                 Built on infrastructure you can trust.
               </h2>
               <p className="text-[#A7ACBF] text-lg mb-8">
                 Jarvis is built on Supabase for the backend, React for the dashboard, and Python
                 for the SDKs. The MCP server uses the official{' '}
-                <code className="text-[#4F46E5] bg-white/5 px-1.5 rounded">mcp</code> Python
+                <code className="text-brand bg-white/5 px-1.5 rounded">mcp</code> Python
                 library for standards-compliant tool exposure to any MCP-compatible agent.
               </p>
               <div className="space-y-3">
@@ -144,7 +144,7 @@ export default function AboutPage() {
 
             <div className="data-card p-8">
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-xl bg-[#4F46E5] flex items-center justify-center">
+                <div className="w-12 h-12 rounded-xl bg-brand flex items-center justify-center">
                   <Bot className="w-7 h-7 text-white" />
                 </div>
                 <div>
@@ -197,7 +197,7 @@ export default function AboutPage() {
             ].map((item) => (
               <div key={item.title} className="data-card p-6">
                 <div className="flex items-center gap-2 mb-3">
-                  <Code className="w-4 h-4 text-[#4F46E5]" />
+                  <Code className="w-4 h-4 text-brand" />
                   <h3 className="font-semibold">{item.title}</h3>
                 </div>
                 <p className="text-sm text-[#A7ACBF]">{item.desc}</p>
