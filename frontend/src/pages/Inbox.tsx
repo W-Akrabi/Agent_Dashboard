@@ -125,7 +125,7 @@ export default function Inbox() {
               key={f}
               onClick={() => setFilter(f)}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-all capitalize ${
-                filter === f ? 'bg-brand text-white' : 'text-[#A7ACBF] hover:text-white hover:bg-white/5'
+                filter === f ? 'bg-brand text-[#05060B]' : 'text-[#A7ACBF] hover:text-white hover:bg-white/5'
               }`}
             >
               {f}

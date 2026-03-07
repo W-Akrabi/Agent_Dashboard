@@ -152,7 +152,7 @@ export default function PricingPage() {
                   to={tier.ctaLink}
                   className={`block w-full py-3 rounded-lg font-medium text-center transition-all ${
                     tier.highlighted
-                      ? 'bg-brand text-white hover:bg-brand-hover'
+                      ? 'bg-brand text-[#05060B] hover:bg-brand-hover'
                       : 'border border-white/10 text-white hover:bg-white/5'
                   }`}
                 >

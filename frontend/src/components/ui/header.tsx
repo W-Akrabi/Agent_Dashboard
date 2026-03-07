@@ -75,7 +75,7 @@ export function Header1() {
                               <p className="text-[#A7ACBF] text-sm mt-1">{item.description}</p>
                             </div>
                             <Link to="/auth">
-                              <Button size="sm" className="mt-10 bg-brand hover:bg-brand-hover text-white w-full">
+                              <Button size="sm" className="mt-10 bg-brand hover:bg-brand-hover text-[#05060B] w-full">
                                 Get early access
                               </Button>
                             </Link>
@@ -106,7 +106,7 @@ export function Header1() {
         <div className="flex lg:justify-center">
           <Link to="/" className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-brand flex items-center justify-center">
-              <Bot className="w-5 h-5 text-white" />
+              <Bot className="w-5 h-5 text-[#05060B]" />
             </div>
             <span className="font-bold text-lg tracking-tight text-[#F4F6FF]">JARVIS</span>
           </Link>
@@ -121,7 +121,7 @@ export function Header1() {
           </Link>
           <div className="border-r border-white/10 hidden md:inline" />
           <Link to="/auth">
-            <Button className="bg-brand hover:bg-brand-hover text-white border-0">
+            <Button className="bg-brand hover:bg-brand-hover text-[#05060B] border-0">
               Get Started
             </Button>
           </Link>
@@ -175,7 +175,7 @@ export function Header1() {
                   </Button>
                 </Link>
                 <Link to="/auth" onClick={() => setOpen(false)}>
-                  <Button className="w-full bg-brand hover:bg-brand-hover text-white border-0">
+                  <Button className="w-full bg-brand hover:bg-brand-hover text-[#05060B] border-0">
                     Get Started
                   </Button>
                 </Link>

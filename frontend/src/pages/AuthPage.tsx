@@ -127,7 +127,7 @@ export default function AuthPage() {
               onClick={() => { setMode('login'); setError(''); }}
               className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
                 mode === 'login'
-                  ? 'bg-brand text-white'
+                  ? 'bg-brand text-[#05060B]'
                   : 'text-[#A7ACBF] hover:text-white'
               }`}
             >
@@ -138,7 +138,7 @@ export default function AuthPage() {
               onClick={() => { setMode('signup'); setError(''); }}
               className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
                 mode === 'signup'
-                  ? 'bg-brand text-white'
+                  ? 'bg-brand text-[#05060B]'
                   : 'text-[#A7ACBF] hover:text-white'
               }`}
             >

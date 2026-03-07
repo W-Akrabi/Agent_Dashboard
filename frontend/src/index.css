@@ -14,13 +14,13 @@
        --brand-hsl  and  --brand  must be the same colour in HSL vs RGB:
          HSL 239 75% 59%  =  RGB 79 70 229  =  #4F46E5
     ────────────────────────────────────────────────────────────────────── */
-    --brand-hsl: 239 75% 59%;      /* used by shadcn/ui via hsl(var(--x))   */
-    --brand: 79 70 229;            /* used by Tailwind brand utilities       */
-    --brand-secondary: 124 58 237; /* #7C3AED — gradient end / 2nd accent   */
-    --brand-hover: 67 56 202;      /* #4338CA — darkened hover (dark bg)    */
-    --brand-light: 91 82 236;      /* #5B52EC — brightened hover (flat btn) */
-    --brand-hex: #4F46E5;          /* raw hex — for SVG color= and fill=    */
-    --brand-secondary-hex: #7C3AED;/* raw hex — for SVG gradient stops      */
+    --brand-hsl: 0 0% 100%;        /* used by shadcn/ui via hsl(var(--x))   */
+    --brand: 255 255 255;          /* used by Tailwind brand utilities       */
+    --brand-secondary: 200 200 200;/* light gray — gradient end / 2nd accent*/
+    --brand-hover: 180 180 180;    /* mid gray — darkened hover (dark bg)   */
+    --brand-light: 230 230 230;    /* near-white — brightened hover         */
+    --brand-hex: #ffffff;          /* raw hex — for SVG color= and fill=    */
+    --brand-secondary-hex: #c8c8c8;/* raw hex — for SVG gradient stops      */
 
     /* ── shadcn/ui semantic tokens (reference brand above) ─────────────── */
     --background: 225 33% 3%;
@@ -30,7 +30,7 @@
     --popover: 222 24% 7%;
     --popover-foreground: 230 60% 97%;
     --primary: var(--brand-hsl);
-    --primary-foreground: 0 0% 100%;
+    --primary-foreground: 0 0% 5%;   /* dark text on white primary buttons  */
     --secondary: 222 24% 12%;
     --secondary-foreground: 230 60% 97%;
     --muted: 222 24% 12%;
@@ -229,7 +229,7 @@
   .btn-primary {
     @apply px-6 py-3 rounded-[10px] font-medium transition-all duration-200;
     background: rgb(var(--brand));
-    color: white;
+    color: #05060B;
   }
   
   .btn-primary:hover {
