@@ -258,7 +258,7 @@ export function ToggleIcon({ size = 40, color = "currentColor", className, durat
       />
       <rect x="5" y="13" width="30" height="14" rx="7" stroke={color} strokeWidth={2}
         opacity={on ? 1 : 0.4} />
-      <motion.circle cy="20" r="5" fill={color}
+      <motion.circle cx={12} cy="20" r="5" fill={color}
         animate={on ? { cx: 28 } : { cx: 12 }}
         transition={{ type: "spring", stiffness: 500, damping: 25 }}
       />

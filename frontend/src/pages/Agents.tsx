@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
+  Activity,
   Bot,
   Plus,
   Play,
@@ -22,8 +23,10 @@ import {
 } from '@/components/ui/dialog';
 
 const statusConfig = {
-  running: { color: 'text-green-400', bg: 'bg-green-400/10', icon: Play, label: 'Running' },
+  online: { color: 'text-green-400', bg: 'bg-green-400/10', icon: Activity, label: 'Online' },
   idle: { color: 'text-blue-400', bg: 'bg-blue-400/10', icon: Clock, label: 'Idle' },
+  offline: { color: 'text-[#A7ACBF]', bg: 'bg-white/5', icon: Pause, label: 'Offline' },
+  running: { color: 'text-green-400', bg: 'bg-green-400/10', icon: Play, label: 'Running' },
   paused: { color: 'text-yellow-400', bg: 'bg-yellow-400/10', icon: Pause, label: 'Paused' },
   error: { color: 'text-red-400', bg: 'bg-red-400/10', icon: AlertCircle, label: 'Error' },
   waiting_approval: { color: 'text-orange-400', bg: 'bg-orange-400/10', icon: Inbox, label: 'Waiting' },

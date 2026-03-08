@@ -7,7 +7,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 
-AgentStatus = Literal["running", "idle", "paused", "error", "waiting_approval"]
+AgentStatus = Literal["online", "idle", "offline", "running", "paused", "error", "waiting_approval"]
 EventType = Literal["action", "completion", "error", "tool_call", "approval_request"]
 InboxStatus = Literal["pending", "approved", "rejected"]
 CommandStatus = Literal["pending", "acked"]
@@ -21,7 +21,7 @@ class AgentResponse(BaseModel):
     name: str
     status: AgentStatus
     totalSpend: float
-    lastSeen: datetime
+    lastSeen: datetime | None = None
     tokenHash: str
     eventsCount: int
     description: str | None = None

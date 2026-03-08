@@ -5,7 +5,7 @@ import ssl
 from collections import defaultdict
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 import logging
 from typing import Any
@@ -107,13 +107,28 @@ def _to_float(value: Decimal | float | int | None) -> float:
     return float(value)
 
 
+def _compute_agent_status(last_seen: datetime | None) -> str:
+    if last_seen is None:
+        return "offline"
+    now = datetime.now(timezone.utc)
+    if last_seen.tzinfo is None:
+        last_seen = last_seen.replace(tzinfo=timezone.utc)
+    age = (now - last_seen).total_seconds()
+    if age <= 120:
+        return "online"
+    if age <= 600:
+        return "idle"
+    return "offline"
+
+
 def _agent_from_row(row: dict[str, Any]) -> AgentResponse:
+    last_seen = row["last_seen"]
     return AgentResponse(
         id=row["id"],
         name=row["name"],
-        status=row["status"],
+        status=_compute_agent_status(last_seen),
         totalSpend=_to_float(row["total_spend"]),
-        lastSeen=row["last_seen"],
+        lastSeen=last_seen,
         tokenHash=mask_token_hash(row["token_hash"]),
         eventsCount=int(row["events_count"] or 0),
         description=row.get("description"),
@@ -434,7 +449,11 @@ def _fetch_agent(
           a.description,
           a.created_at,
           coalesce(sum(e.cost), 0)::float8 as total_spend,
-          coalesce(max(e.created_at), a.created_at) as last_seen,
+          greatest(
+            max(e.created_at),
+            (select max(created_at) from commands where agent_id = a.id),
+            (select max(created_at) from comms_messages where agent_id = a.id)
+          ) as last_seen,
           count(e.id)::int as events_count,
           t.token_hash
         from agents a
@@ -508,7 +527,11 @@ def list_agents(
           a.description,
           a.created_at,
           coalesce(sum(e.cost), 0)::float8 as total_spend,
-          coalesce(max(e.created_at), a.created_at) as last_seen,
+          greatest(
+            max(e.created_at),
+            (select max(created_at) from commands where agent_id = a.id),
+            (select max(created_at) from comms_messages where agent_id = a.id)
+          ) as last_seen,
           count(e.id)::int as events_count,
           t.token_hash
         from agents a
