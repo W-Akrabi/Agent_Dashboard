@@ -67,9 +67,13 @@ CREATE TABLE IF NOT EXISTS agent_tokens (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   agent_id uuid NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
   token_hash text NOT NULL,
+  encrypted_token bytea,           -- Fernet-encrypted plaintext token (nullable for legacy rows)
   created_at timestamptz NOT NULL DEFAULT now(),
   revoked_at timestamptz
 );
+
+-- Migration: add encrypted_token to existing deployments
+ALTER TABLE agent_tokens ADD COLUMN IF NOT EXISTS encrypted_token bytea;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_agent_tokens_one_active
   ON agent_tokens(agent_id)

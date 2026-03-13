@@ -107,6 +107,10 @@ export function revokeAgentToken(agentId: string) {
   });
 }
 
+export function revealAgentToken(agentId: string) {
+  return apiRequest<{ agentId: string; token: string }>(`/v1/agents/${agentId}/reveal-token`);
+}
+
 export function getAgentEvents(agentId: string, limit = 100) {
   return apiRequest<AgentEvent[]>(`/v1/agents/${agentId}/events`, {
     query: { limit },

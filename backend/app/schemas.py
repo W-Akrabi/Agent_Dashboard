@@ -211,3 +211,9 @@ class VaultSecretRevealResponse(BaseModel):
     id: UUID
     keyName: str
     value: str
+
+
+class AgentTokenRevealResponse(BaseModel):
+    """Returned only from the /reveal-token endpoint — contains the decrypted plaintext token."""
+    agentId: UUID
+    token: str

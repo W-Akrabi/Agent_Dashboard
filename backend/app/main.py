@@ -33,6 +33,7 @@ from .schemas import (
     AgentEventResponse,
     AgentResponse,
     AgentStatusUpdateRequest,
+    AgentTokenRevealResponse,
     BudgetUpdateRequest,
     CommandResponse,
     CommsAgentSummary,
@@ -606,12 +607,18 @@ def create_agent(
     if created_agent is None:
         raise HTTPException(status_code=500, detail="Failed to create agent.")
 
+    try:
+        vault_key = _require_vault_key()
+        encrypted = encrypt_secret(token, vault_key)
+    except HTTPException:
+        encrypted = None  # vault not configured — token stored hash-only
+
     connection.execute(
         """
-        insert into agent_tokens (agent_id, token_hash)
-        values (%s::uuid, %s)
+        insert into agent_tokens (agent_id, token_hash, encrypted_token)
+        values (%s::uuid, %s, %s)
         """,
-        (created_agent["id"], token_hash),
+        (created_agent["id"], token_hash, encrypted),
     )
 
     return AgentCreateResponse(
@@ -680,6 +687,39 @@ def revoke_agent_token(
         (agent_id,),
     )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@app.get("/v1/agents/{agent_id}/reveal-token", response_model=AgentTokenRevealResponse)
+def reveal_agent_token(
+    agent_id: UUID,
+    auth_user: AuthenticatedUser = Depends(_require_user_auth),
+    connection: Connection[dict[str, Any]] = Depends(get_db),
+) -> AgentTokenRevealResponse:
+    """Return the decrypted plaintext agent token. Requires vault encryption to be configured."""
+    vault_key = _require_vault_key()
+
+    row = connection.execute(
+        """
+        select t.encrypted_token
+        from agent_tokens t
+        join agents a on a.id = t.agent_id
+        where t.agent_id = %s::uuid
+          and a.workspace_id = %s::uuid
+          and t.revoked_at is null
+        """,
+        (agent_id, auth_user.workspace_id),
+    ).fetchone()
+
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found.")
+    if row["encrypted_token"] is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Token was created before encrypted storage was enabled. Revoke and regenerate to enable reveal.",
+        )
+
+    plaintext = decrypt_secret(bytes(row["encrypted_token"]), vault_key)
+    return AgentTokenRevealResponse(agentId=agent_id, token=plaintext)
 
 
 @app.get("/v1/agents/{agent_id}/events", response_model=list[AgentEventResponse])
