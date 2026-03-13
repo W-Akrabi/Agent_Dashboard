@@ -10,6 +10,7 @@ const sections = [
   { id: 'events', label: 'Event Types' },
   { id: 'approvals', label: 'Approvals' },
   { id: 'comms-hub', label: 'Comms Hub' },
+  { id: 'disconnecting', label: 'Disconnecting' },
 ];
 
 export default function DocsPage() {
@@ -623,6 +624,60 @@ if msgs:
                       <span className="text-[#A7ACBF]">{item}</span>
                     </div>
                   ))}
+                </div>
+              </div>
+            </section>
+
+            {/* Disconnecting */}
+            <section id="disconnecting">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-8 h-8 rounded-lg bg-brand/20 flex items-center justify-center">
+                  <Terminal className="w-4 h-4 text-brand" />
+                </div>
+                <h2 className="text-2xl font-bold">Disconnecting an Agent</h2>
+              </div>
+              <p className="text-[#A7ACBF] mb-6">
+                To fully remove an agent as if it never connected, you need to do two things: remove
+                the MCP server from your agent tool, and revoke the token in the dashboard. Either
+                step alone leaves a dangling piece.
+              </p>
+
+              <div className="space-y-4">
+                <div className="data-card p-6">
+                  <h3 className="font-semibold mb-3">Step 1 — Remove the Jarvis integration from your agent</h3>
+                  <p className="text-sm text-[#A7ACBF] mb-4">
+                    How you do this depends on how you connected:
+                  </p>
+                  <div className="space-y-3 text-sm text-[#A7ACBF]">
+                    {[
+                      { label: 'MCP (Claude Code / Codex CLI)', detail: 'Run claude mcp remove jarvis' },
+                      { label: 'MCP (Cursor / Windsurf)', detail: 'Delete the jarvis entry from mcpServers in your settings.json' },
+                      { label: 'Python SDK', detail: 'Remove the JarvisAgent initialisation and any agent.log() / agent.request_approval() calls from your code' },
+                      { label: 'HTTP API / Webhook', detail: 'Remove the X-Agent-Token header and stop sending requests to Jarvis endpoints' },
+                      { label: 'OpenAI Agents SDK hooks', detail: 'Remove JarvisHooks from your Agent constructor' },
+                    ].map((item) => (
+                      <div key={item.label} className="flex items-start gap-2">
+                        <CheckCircle className="w-4 h-4 text-brand shrink-0 mt-0.5" />
+                        <span><strong className="text-white">{item.label}:</strong> {item.detail}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="data-card p-6">
+                  <h3 className="font-semibold mb-3">Step 2 — Revoke the token in the dashboard</h3>
+                  <p className="text-sm text-[#A7ACBF] mb-3">
+                    Go to <strong className="text-white">Agents → [Agent Name] → Revoke Token</strong>.
+                    Once revoked, any request using that token is rejected immediately — even if someone
+                    still has the token value.
+                  </p>
+                  <div className="flex items-start gap-2 text-sm">
+                    <CheckCircle className="w-4 h-4 text-brand shrink-0 mt-0.5" />
+                    <span className="text-[#A7ACBF]">
+                      You can also delete the agent entirely from the Agent Detail page to remove it
+                      from your workspace.
+                    </span>
+                  </div>
                 </div>
               </div>
             </section>
