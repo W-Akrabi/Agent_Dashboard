@@ -254,12 +254,16 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             timeout_minutes = arguments.get("timeout_minutes", 5)
             deadline = time.monotonic() + (timeout_minutes * 60)
 
-            # Step 2: Poll for decision until approved/rejected or timed out
+            # Step 2: Long-poll for decision until approved/rejected or timed out
             while time.monotonic() < deadline:
-                await asyncio.sleep(3)
-
+                remaining = deadline - time.monotonic()
+                poll_timeout = min(30, max(1, int(remaining)))
                 try:
-                    cmd_response = await client.get(f"{JARVIS_URL}/v1/commands")
+                    cmd_response = await client.get(
+                        f"{JARVIS_URL}/v1/commands/listen",
+                        params={"timeout": poll_timeout},
+                        timeout=poll_timeout + 10,
+                    )
                     cmd_response.raise_for_status()
                 except httpx.HTTPError:
                     # Dashboard unreachable — keep waiting until timeout

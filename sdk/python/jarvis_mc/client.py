@@ -31,7 +31,6 @@ With Claude (auto-reports cost + response):
 """
 from __future__ import annotations
 
-import time
 from typing import Any
 
 import requests
@@ -79,9 +78,16 @@ class JarvisAgent:
         response.raise_for_status()
         return response.json()  # type: ignore[no-any-return]
 
-    def _get(self, path: str) -> list[dict[str, Any]]:
+    def _get(
+        self,
+        path: str,
+        params: dict[str, Any] | None = None,
+        timeout: float | None = None,
+    ) -> list[dict[str, Any]]:
         response = self._session.get(
-            f"{self._base_url}{path}", timeout=self._timeout
+            f"{self._base_url}{path}",
+            params=params,
+            timeout=timeout if timeout is not None else self._timeout,
         )
         response.raise_for_status()
         return response.json()  # type: ignore[no-any-return]
@@ -153,28 +159,28 @@ class JarvisAgent:
             raise RuntimeError("Server did not return a taskId for the checkpoint.")
         return str(task_id)
 
-    def wait_for_decision(self, poll_interval: float = 5.0) -> dict[str, Any]:
+    def wait_for_decision(self) -> dict[str, Any]:
         """
         Block until a human approves or rejects in the dashboard.
 
+        Uses long polling — no wasted requests while waiting.
         Automatically acknowledges the command before returning.
 
         Returns the decision payload, e.g.:
             {"decision": "approved", "comment": "Go ahead"}
             {"decision": "rejected", "comment": "Too risky"}
-
-        Parameters
-        ----------
-        poll_interval:
-            Seconds between polls. Defaults to 5.
         """
+        _poll_timeout = 30
         while True:
-            commands = self._get("/v1/commands")
+            commands = self._get(
+                "/v1/commands/listen",
+                params={"timeout": _poll_timeout},
+                timeout=float(_poll_timeout + 10),
+            )
             for cmd in commands:
                 if cmd.get("kind") == "approval_decision" and cmd.get("status") == "pending":
                     self.ack(cmd["id"])
                     return cmd.get("payload", {})  # type: ignore[return-value]
-            time.sleep(poll_interval)
 
     def ack(self, command_id: str) -> dict[str, Any]:
         """
@@ -206,6 +212,28 @@ class JarvisAgent:
         """
         commands = self._get("/v1/commands")
         return [c for c in commands if c.get("kind") == "human_message" and c.get("status") == "pending"]
+
+    def wait_for_human_message(self) -> dict[str, Any]:
+        """
+        Block until a human sends a message from the Comms Hub.
+
+        Uses long polling — no wasted requests while waiting.
+        Automatically acknowledges the command before returning.
+
+        Returns the message payload:
+            {"messageId": "<uuid>", "content": "the human's message"}
+        """
+        _poll_timeout = 30
+        while True:
+            commands = self._get(
+                "/v1/commands/listen",
+                params={"timeout": _poll_timeout},
+                timeout=float(_poll_timeout + 10),
+            )
+            for cmd in commands:
+                if cmd.get("kind") == "human_message" and cmd.get("status") == "pending":
+                    self.ack(cmd["id"])
+                    return cmd.get("payload", {})  # type: ignore[return-value]
 
     def reply(
         self,

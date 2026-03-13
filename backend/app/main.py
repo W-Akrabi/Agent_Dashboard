@@ -1096,6 +1096,8 @@ def decide_inbox_item(
                 detail="A decision command already exists for this inbox item.",
             )
 
+        _sse_publish(f"commands:{task_row['agent_id']}")
+
         pending_count_row = connection.execute(
             """
             select count(*)::int as pending_count
@@ -1274,6 +1276,61 @@ def get_commands(
             (agent_id,),
         ).fetchall()
 
+    return [_command_from_row(row) for row in rows]
+
+
+@app.get("/v1/commands/listen", response_model=list[CommandResponse])
+async def listen_for_commands(
+    timeout: int = Query(default=30, ge=1, le=60),
+    x_agent_token: str | None = Header(default=None, alias="X-Agent-Token"),
+) -> list[CommandResponse]:
+    """Long-poll: holds the connection until a command arrives or timeout expires.
+    The DB connection is released while waiting — zero idle DB cost."""
+    pool = get_db_pool()
+
+    # Phase 1: auth + check for already-pending commands, then release connection
+    with pool.connection() as conn:
+        agent_id = _require_agent_id(conn, x_agent_token)
+        rows = conn.execute(
+            """
+            select id, agent_id, kind, payload, status, created_at,
+                   source_task_id, source_message_id
+            from commands
+            where agent_id = %s::uuid and status = 'pending'
+            order by created_at asc
+            """,
+            (agent_id,),
+        ).fetchall()
+
+    if rows:
+        return [_command_from_row(row) for row in rows]
+
+    # Phase 2: wait for a signal — no DB connection held during the wait
+    channel = f"commands:{agent_id}"
+    q: asyncio.Queue[str] = asyncio.Queue()
+    _sse_queues[channel].append(q)
+    try:
+        await asyncio.wait_for(q.get(), timeout=float(timeout))
+    except asyncio.TimeoutError:
+        pass
+    finally:
+        try:
+            _sse_queues[channel].remove(q)
+        except ValueError:
+            pass
+
+    # Phase 3: fetch after signal (or timeout) — new short-lived connection
+    with pool.connection() as conn:
+        rows = conn.execute(
+            """
+            select id, agent_id, kind, payload, status, created_at,
+                   source_task_id, source_message_id
+            from commands
+            where agent_id = %s::uuid and status = 'pending'
+            order by created_at asc
+            """,
+            (agent_id,),
+        ).fetchall()
     return [_command_from_row(row) for row in rows]
 
 
@@ -1475,6 +1532,7 @@ def send_comms_message(
             ),
         )
 
+    _sse_publish(f"commands:{agent_id}")
     _sse_publish(f"comms:{auth_user.workspace_id}")
     return _comms_message_from_row(msg_row)
 
