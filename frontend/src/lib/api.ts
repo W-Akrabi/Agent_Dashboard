@@ -101,6 +101,12 @@ export function updateAgentStatus(agentId: string, status: Agent['status']) {
   });
 }
 
+export function deleteAgent(agentId: string) {
+  return apiRequest<void>(`/v1/agents/${agentId}`, {
+    method: 'DELETE',
+  });
+}
+
 export function revokeAgentToken(agentId: string) {
   return apiRequest<void>(`/v1/agents/${agentId}/revoke-token`, {
     method: 'POST',

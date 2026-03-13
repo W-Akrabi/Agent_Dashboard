@@ -659,6 +659,52 @@ def update_agent_status(
     return _fetch_agent(connection, agent_id, auth_user.workspace_id)
 
 
+@app.delete(
+    "/v1/agents/{agent_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
+def delete_agent(
+    agent_id: UUID,
+    auth_user: AuthenticatedUser = Depends(_require_user_auth),
+    connection: Connection[dict[str, Any]] = Depends(get_db),
+) -> Response:
+    deleted = connection.execute(
+        """
+        delete from agents
+        where id = %s::uuid and workspace_id = %s::uuid
+        returning id
+        """,
+        (agent_id, auth_user.workspace_id),
+    ).fetchone()
+    if deleted is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found.")
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@app.delete(
+    "/v1/agents/{agent_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
+def delete_agent(
+    agent_id: UUID,
+    auth_user: AuthenticatedUser = Depends(_require_user_auth),
+    connection: Connection[dict[str, Any]] = Depends(get_db),
+) -> Response:
+    deleted = connection.execute(
+        """
+        delete from agents
+        where id = %s::uuid and workspace_id = %s::uuid
+        returning id
+        """,
+        (agent_id, auth_user.workspace_id),
+    ).fetchone()
+    if deleted is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found.")
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @app.post(
     "/v1/agents/{agent_id}/revoke-token",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -2521,26 +2567,25 @@ async def _mcp_call_tool(
         with pool.connection() as conn:
             rows = conn.execute(
                 """
-                select id, payload, source_message_id
-                from commands
-                where agent_id = %s::uuid
-                  and kind = 'human_message'
-                  and status = 'pending'
-                order by created_at asc
+                with picked as (
+                  update commands
+                  set status = 'acked', acked_at = now()
+                  where id in (
+                    select id from commands
+                    where agent_id = %s::uuid
+                      and kind = 'human_message'
+                      and status = 'pending'
+                    order by created_at asc
+                    for update skip locked
+                  )
+                  returning id, payload, source_message_id
+                )
+                select id, payload, source_message_id from picked
+                order by (select created_at from commands c where c.id = picked.id)
                 """,
                 (agent_id,),
             ).fetchall()
-
-        if not rows:
-            return _mcp_result(rpc_id, "No pending human messages.")
-
-        # Ack all fetched commands → marks comms messages as 'delivered'
-        with pool.connection() as conn:
             for row in rows:
-                conn.execute(
-                    "update commands set status = 'acked', acked_at = now() where id = %s::uuid",
-                    (row["id"],),
-                )
                 if row.get("source_message_id"):
                     conn.execute(
                         """
@@ -2550,6 +2595,9 @@ async def _mcp_call_tool(
                         """,
                         (row["source_message_id"],),
                     )
+
+        if not rows:
+            return _mcp_result(rpc_id, "No pending human messages.")
 
         lines = []
         for row in rows:
@@ -2566,22 +2614,41 @@ async def _mcp_call_tool(
         timeout_minutes = int(arguments.get("timeout_minutes", 5))
         deadline = time.monotonic() + (timeout_minutes * 60)
 
-        def _ack_and_format(rows: list) -> str:
-            with pool.connection() as conn:
-                for row in rows:
+        def _atomic_claim(conn: Any) -> list:
+            """Atomically claim and ack all pending human_message commands for this agent."""
+            claimed = conn.execute(
+                """
+                with picked as (
+                  update commands
+                  set status = 'acked', acked_at = now()
+                  where id in (
+                    select id from commands
+                    where agent_id = %s::uuid
+                      and kind = 'human_message'
+                      and status = 'pending'
+                    order by created_at asc
+                    for update skip locked
+                  )
+                  returning id, payload, source_message_id
+                )
+                select id, payload, source_message_id from picked
+                order by (select created_at from commands c where c.id = picked.id)
+                """,
+                (agent_id,),
+            ).fetchall()
+            for row in claimed:
+                if row.get("source_message_id"):
                     conn.execute(
-                        "update commands set status = 'acked', acked_at = now() where id = %s::uuid",
-                        (row["id"],),
+                        """
+                        update comms_messages
+                        set message_status = 'delivered', delivered_at = now()
+                        where id = %s::uuid and message_status = 'queued'
+                        """,
+                        (row["source_message_id"],),
                     )
-                    if row.get("source_message_id"):
-                        conn.execute(
-                            """
-                            update comms_messages
-                            set message_status = 'delivered', delivered_at = now()
-                            where id = %s::uuid and message_status = 'queued'
-                            """,
-                            (row["source_message_id"],),
-                        )
+            return claimed
+
+        def _format(rows: list) -> str:
             lines = []
             for row in rows:
                 payload_data = row["payload"] or {}
@@ -2594,20 +2661,10 @@ async def _mcp_call_tool(
 
         # Check immediately for any already-pending messages first
         with pool.connection() as conn:
-            rows = conn.execute(
-                """
-                select id, payload, source_message_id
-                from commands
-                where agent_id = %s::uuid
-                  and kind = 'human_message'
-                  and status = 'pending'
-                order by created_at asc
-                """,
-                (agent_id,),
-            ).fetchall()
+            rows = _atomic_claim(conn)
 
         if rows:
-            return _mcp_result(rpc_id, _ack_and_format(rows))
+            return _mcp_result(rpc_id, _format(rows))
 
         # No messages yet — long-poll using SSE queue (no DB connection held during wait)
         channel = f"commands:{agent_id}"
@@ -2627,20 +2684,10 @@ async def _mcp_call_tool(
                     pass
 
             with pool.connection() as conn:
-                rows = conn.execute(
-                    """
-                    select id, payload, source_message_id
-                    from commands
-                    where agent_id = %s::uuid
-                      and kind = 'human_message'
-                      and status = 'pending'
-                    order by created_at asc
-                    """,
-                    (agent_id,),
-                ).fetchall()
+                rows = _atomic_claim(conn)
 
             if rows:
-                return _mcp_result(rpc_id, _ack_and_format(rows))
+                return _mcp_result(rpc_id, _format(rows))
 
         return _mcp_result(rpc_id, f"No messages received after {timeout_minutes} minute(s). Call wait_for_human_message again to keep listening.")
 

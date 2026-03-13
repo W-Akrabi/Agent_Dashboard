@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { CopiedIcon } from '@/components/ui/animated-state-icons';
 import type { Agent, AgentEvent } from '@/types/index';
-import { getAgent, getAgentEvents, getSseToken, revealAgentToken, revokeAgentToken, updateAgentStatus } from '@/lib/api';
+import { deleteAgent, getAgent, getAgentEvents, getSseToken, revealAgentToken, revokeAgentToken, updateAgentStatus } from '@/lib/api';
 import { useInvalidation } from '@/contexts/InvalidationContext';
 import {
   Dialog,
@@ -55,6 +55,7 @@ export default function AgentDetail() {
   const [connectTab, setConnectTab] = useState('claude-code');
   const [copiedConnect, setCopiedConnect] = useState(false);
   const [showRevokeDialog, setShowRevokeDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [revealedToken, setRevealedToken] = useState<string | null>(null);
   const [showToken, setShowToken] = useState(false);
   const [revealingToken, setRevealingToken] = useState(false);
@@ -211,6 +212,17 @@ export default function AgentDetail() {
     }
   };
 
+  const handleDelete = async () => {
+    try {
+      await deleteAgent(agent.id);
+      setShowDeleteDialog(false);
+      navigate('/agents');
+    } catch (deleteError) {
+      console.error(deleteError);
+      setError(deleteError instanceof Error ? deleteError.message : 'Failed to delete agent.');
+    }
+  };
+
   return (
     <div className="space-y-6">
       {error && (
@@ -281,6 +293,34 @@ export default function AgentDetail() {
                       Revoke Token
                     </button>
                     <button onClick={() => setShowRevokeDialog(false)} className="flex-1 btn-secondary">
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+            <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+              <DialogTrigger asChild>
+                <button className="btn-secondary flex items-center gap-2 text-red-400 border-red-400/30 hover:bg-red-400/10">
+                  <Trash2 className="w-4 h-4" /> Delete Agent
+                </button>
+              </DialogTrigger>
+              <DialogContent className="bg-[#0B0E16] border-white/10 text-white">
+                <DialogHeader>
+                  <DialogTitle>Delete Agent</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <p className="text-[#A7ACBF]">
+                    Are you sure you want to permanently delete <strong>{agent.name}</strong>?
+                  </p>
+                  <p className="text-sm text-[#A7ACBF]">
+                    This will remove the agent and all its data (events, tokens, messages) permanently. This action cannot be undone.
+                  </p>
+                  <div className="flex gap-3">
+                    <button onClick={() => void handleDelete()} className="flex-1 btn-primary bg-red-500 hover:bg-red-600">
+                      Delete Agent
+                    </button>
+                    <button onClick={() => setShowDeleteDialog(false)} className="flex-1 btn-secondary">
                       Cancel
                     </button>
                   </div>
