@@ -235,6 +235,44 @@ class JarvisAgent:
                     self.ack(cmd["id"])
                     return cmd.get("payload", {})  # type: ignore[return-value]
 
+    def typing(self, is_typing: bool = True) -> None:
+        """
+        Signal to the dashboard that the agent is (or is no longer) typing.
+
+        Call with is_typing=True when the agent starts processing a message,
+        and is_typing=False when it's done (or just call reply() which implicitly
+        clears the indicator via the update event).
+
+        Parameters
+        ----------
+        is_typing:
+            True to show the typing indicator, False to hide it.
+        """
+        self._post("/v1/comms/typing", {"isTyping": is_typing})
+
+    def stream_chunk(self, content: str) -> None:
+        """
+        Stream a token chunk to the Comms Hub in real-time.
+
+        Call this in a loop as tokens arrive from the model. The dashboard
+        renders chunks as they come in. Finish by calling reply() with the
+        full response, which stores it in the DB and clears the stream.
+
+        Example::
+            agent.typing()
+            full = ""
+            for chunk in model.stream("..."):
+                full += chunk
+                agent.stream_chunk(chunk)
+            agent.reply(full)
+
+        Parameters
+        ----------
+        content:
+            The token or partial text to stream.
+        """
+        self._post("/v1/comms/stream", {"content": content})
+
     def reply(
         self,
         content: str,

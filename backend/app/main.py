@@ -40,6 +40,8 @@ from .schemas import (
     CommsMessageResponse,
     CommsReplyRequest,
     CommsSendRequest,
+    CommsStreamChunkRequest,
+    CommsTypingRequest,
     EventIngestRequest,
     EventIngestResponse,
     InboxDecisionRequest,
@@ -1533,7 +1535,7 @@ def send_comms_message(
         )
 
     _sse_publish(f"commands:{agent_id}")
-    _sse_publish(f"comms:{auth_user.workspace_id}")
+    _sse_publish(f"comms:{auth_user.workspace_id}", '{"type":"update"}')
     return _comms_message_from_row(msg_row)
 
 
@@ -1606,8 +1608,48 @@ def post_comms_reply(
                 (payload.replyToMessageId, agent_id),
             )
 
-    _sse_publish(f"comms:{workspace_id}")
+    _sse_publish(f"comms:{workspace_id}", '{"type":"update"}')
     return _comms_message_from_row(msg_row)
+
+
+@app.post("/v1/comms/typing", status_code=status.HTTP_204_NO_CONTENT)
+def post_comms_typing(
+    payload: CommsTypingRequest,
+    x_agent_token: str | None = Header(default=None, alias="X-Agent-Token"),
+    connection: Connection[dict[str, Any]] = Depends(get_db),
+) -> None:
+    """Agent signals typing status to the dashboard. No DB write — ephemeral SSE signal only."""
+    agent_id = _require_agent_id(connection, x_agent_token)
+    workspace_row = connection.execute(
+        "select workspace_id from agents where id = %s::uuid", (agent_id,)
+    ).fetchone()
+    if workspace_row is None:
+        raise HTTPException(status_code=404, detail="Agent not found.")
+    import json as _json
+    _sse_publish(
+        f"comms:{workspace_row['workspace_id']}",
+        _json.dumps({"type": "typing", "agentId": str(agent_id), "isTyping": payload.isTyping}),
+    )
+
+
+@app.post("/v1/comms/stream", status_code=status.HTTP_204_NO_CONTENT)
+def post_comms_stream_chunk(
+    payload: CommsStreamChunkRequest,
+    x_agent_token: str | None = Header(default=None, alias="X-Agent-Token"),
+    connection: Connection[dict[str, Any]] = Depends(get_db),
+) -> None:
+    """Agent streams a token chunk to the dashboard. No DB write — ephemeral SSE only."""
+    agent_id = _require_agent_id(connection, x_agent_token)
+    workspace_row = connection.execute(
+        "select workspace_id from agents where id = %s::uuid", (agent_id,)
+    ).fetchone()
+    if workspace_row is None:
+        raise HTTPException(status_code=404, detail="Agent not found.")
+    import json as _json
+    _sse_publish(
+        f"comms:{workspace_row['workspace_id']}",
+        _json.dumps({"type": "chunk", "agentId": str(agent_id), "content": payload.content}),
+    )
 
 
 # ============================================================================

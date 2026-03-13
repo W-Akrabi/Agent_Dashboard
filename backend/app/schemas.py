@@ -126,6 +126,14 @@ class CommsReplyRequest(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+class CommsTypingRequest(BaseModel):
+    isTyping: bool = True
+
+
+class CommsStreamChunkRequest(BaseModel):
+    content: str = Field(min_length=1, max_length=4000)
+
+
 class SpendBreakdownItem(BaseModel):
     agentId: UUID
     agentName: str

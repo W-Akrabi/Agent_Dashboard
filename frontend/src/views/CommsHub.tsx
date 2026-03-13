@@ -146,6 +146,33 @@ function ApprovalBanner({ agentName }: { agentName: string }) {
   );
 }
 
+// ── TypingBubble ──────────────────────────────────────────────────────────────
+
+function TypingBubble() {
+  return (
+    <article className="flex flex-col max-w-[80%] mr-auto items-start">
+      <div className="rounded-xl border border-white/10 bg-[#05060B]/80 px-4 py-3 flex items-center gap-1.5">
+        <span className="h-1.5 w-1.5 rounded-full bg-[#A7ACBF] animate-bounce [animation-delay:-0.3s]" />
+        <span className="h-1.5 w-1.5 rounded-full bg-[#A7ACBF] animate-bounce [animation-delay:-0.15s]" />
+        <span className="h-1.5 w-1.5 rounded-full bg-[#A7ACBF] animate-bounce" />
+      </div>
+    </article>
+  );
+}
+
+// ── StreamingBubble ───────────────────────────────────────────────────────────
+
+function StreamingBubble({ agentId, content }: { agentId: string; content: string }) {
+  return (
+    <article className="flex flex-col max-w-[80%] mr-auto items-start">
+      <div className="rounded-xl border border-white/10 bg-[#05060B]/80 text-[#F4F6FF] px-4 py-3">
+        <p className="text-[11px] font-semibold mb-1 text-[#A7ACBF]">{agentId.slice(0, 8)}</p>
+        <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{content}<span className="inline-block w-0.5 h-3.5 ml-0.5 bg-[#A7ACBF] animate-pulse align-middle" /></p>
+      </div>
+    </article>
+  );
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export const CommsHub: React.FC = () => {
@@ -162,6 +189,10 @@ export const CommsHub: React.FC = () => {
 
   // Optimistic messages queued locally before server confirms
   const [optimisticMsgs, setOptimisticMsgs] = useState<CommsMessage[]>([]);
+
+  // Real-time agent activity
+  const [isAgentTyping, setIsAgentTyping] = useState(false);
+  const [streamingContent, setStreamingContent] = useState<string | null>(null);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -209,7 +240,14 @@ export const CommsHub: React.FC = () => {
       try { sseToken = await getSseToken(); } catch { return; }
       if (!mounted) return;
       es = new EventSource(`${_API_BASE}/v1/stream/comms?token=${sseToken}`);
-      es.onmessage = () => { void fetchAgents(); };
+      es.onmessage = (e: MessageEvent) => {
+        try {
+          const evt = JSON.parse(e.data as string) as { type: string };
+          if (evt.type === 'update') void fetchAgents();
+        } catch {
+          void fetchAgents(); // fallback
+        }
+      };
       es.onerror = () => {
         es?.close();
         es = null;
@@ -242,6 +280,8 @@ export const CommsHub: React.FC = () => {
 
   useEffect(() => {
     if (!selectedId) return;
+    setIsAgentTyping(false);
+    setStreamingContent(null);
     void fetchMessages(selectedId);
   }, [selectedId, fetchMessages]);
 
@@ -263,7 +303,24 @@ export const CommsHub: React.FC = () => {
       try { sseToken = await getSseToken(); } catch { return; }
       if (!mounted) return;
       es = new EventSource(`${_API_BASE}/v1/stream/comms?token=${sseToken}`);
-      es.onmessage = () => { void fetchMessages(selectedId); };
+      es.onmessage = (e: MessageEvent) => {
+        try {
+          const evt = JSON.parse(e.data as string) as { type: string; agentId?: string; isTyping?: boolean; content?: string };
+          if (evt.type === 'update') {
+            setIsAgentTyping(false);
+            setStreamingContent(null);
+            void fetchMessages(selectedId);
+          } else if (evt.type === 'typing' && evt.agentId === selectedId) {
+            setIsAgentTyping(evt.isTyping ?? false);
+            if (!evt.isTyping) setStreamingContent(null);
+          } else if (evt.type === 'chunk' && evt.agentId === selectedId) {
+            setIsAgentTyping(false);
+            setStreamingContent(prev => (prev ?? '') + (evt.content ?? ''));
+          }
+        } catch {
+          void fetchMessages(selectedId); // fallback
+        }
+      };
       es.onerror = () => {
         es?.close();
         es = null;
@@ -283,7 +340,7 @@ export const CommsHub: React.FC = () => {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, optimisticMsgs]);
+  }, [messages, optimisticMsgs, isAgentTyping, streamingContent]);
 
   // ── send ───────────────────────────────────────────────────────────────────
 
@@ -415,7 +472,13 @@ export const CommsHub: React.FC = () => {
                 <p className="text-xs text-[#555870]">Send a message to start the conversation</p>
               </div>
             ) : (
-              timeline.map(msg => <MessageBubble key={msg.id} msg={msg} />)
+              <>
+                {timeline.map(msg => <MessageBubble key={msg.id} msg={msg} />)}
+                {streamingContent && selectedId && (
+                  <StreamingBubble agentId={selectedId} content={streamingContent} />
+                )}
+                {isAgentTyping && !streamingContent && <TypingBubble />}
+              </>
             )}
             <div ref={bottomRef} />
           </div>
@@ -453,7 +516,7 @@ export const CommsHub: React.FC = () => {
               </button>
             </div>
             <p className="mt-1.5 text-[10px] text-[#555870]">
-              Messages queue and deliver when the agent polls for commands.
+              Messages deliver instantly. Agents can stream responses in real-time.
             </p>
           </div>
         </div>
