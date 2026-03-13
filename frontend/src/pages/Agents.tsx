@@ -196,22 +196,18 @@ export default function Agents() {
 
                   {connectTab === 'claude-code' && (
                     <div className="space-y-2">
-                      <p className="text-xs text-[#A7ACBF]">Step 1 — install the MCP server:</p>
-                      <code className="block p-2 bg-white/5 rounded-lg text-xs font-mono">pip install jarvis-mc-mcp</code>
-                      <p className="text-xs text-[#A7ACBF]">Step 2 — register with Claude Code:</p>
-                      <code className="block p-3 bg-white/5 rounded-lg text-xs font-mono whitespace-pre-wrap">{`claude mcp add jarvis \\\n  -e JARVIS_TOKEN=${generatedToken} \\\n  -e JARVIS_URL=${apiBaseUrl} \\\n  -- jarvis-mcp`}</code>
-                      <button onClick={() => copyConnect(`claude mcp add jarvis -e JARVIS_TOKEN=${generatedToken} -e JARVIS_URL=${apiBaseUrl} -- jarvis-mcp`)} className="flex items-center gap-1 px-3 py-1.5 bg-brand rounded-lg hover:bg-brand-hover transition-colors text-xs text-white">
+                      <p className="text-xs text-[#A7ACBF]">One command — no installation required:</p>
+                      <code className="block p-3 bg-white/5 rounded-lg text-xs font-mono break-all">{`claude mcp add --transport http jarvis "${apiBaseUrl}/mcp?token=${generatedToken}"`}</code>
+                      <button onClick={() => copyConnect(`claude mcp add --transport http jarvis "${apiBaseUrl}/mcp?token=${generatedToken}"`)} className="flex items-center gap-1 px-3 py-1.5 bg-brand rounded-lg hover:bg-brand-hover transition-colors text-xs text-white">
                         <CopiedIcon size={14} color="white" />{copiedConnect ? 'Copied!' : 'Copy command'}
                       </button>
                     </div>
                   )}
                   {connectTab === 'codex' && (
                     <div className="space-y-2">
-                      <p className="text-xs text-[#A7ACBF]">Step 1 — install the MCP server:</p>
-                      <code className="block p-2 bg-white/5 rounded-lg text-xs font-mono">pip install jarvis-mc-mcp</code>
-                      <p className="text-xs text-[#A7ACBF]">Step 2 — register with Codex:</p>
-                      <code className="block p-3 bg-white/5 rounded-lg text-xs font-mono whitespace-pre-wrap">{`codex mcp add jarvis \\\n  --env JARVIS_TOKEN=${generatedToken} \\\n  --env JARVIS_URL=${apiBaseUrl} \\\n  -- jarvis-mcp`}</code>
-                      <button onClick={() => copyConnect(`codex mcp add jarvis --env JARVIS_TOKEN=${generatedToken} --env JARVIS_URL=${apiBaseUrl} -- jarvis-mcp`)} className="flex items-center gap-1 px-3 py-1.5 bg-brand rounded-lg hover:bg-brand-hover transition-colors text-xs text-white">
+                      <p className="text-xs text-[#A7ACBF]">One command — no installation required:</p>
+                      <code className="block p-3 bg-white/5 rounded-lg text-xs font-mono break-all">{`codex mcp add --transport http jarvis "${apiBaseUrl}/mcp?token=${generatedToken}"`}</code>
+                      <button onClick={() => copyConnect(`codex mcp add --transport http jarvis "${apiBaseUrl}/mcp?token=${generatedToken}"`)} className="flex items-center gap-1 px-3 py-1.5 bg-brand rounded-lg hover:bg-brand-hover transition-colors text-xs text-white">
                         <CopiedIcon size={14} color="white" />{copiedConnect ? 'Copied!' : 'Copy command'}
                       </button>
                     </div>

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Terminal, Code, Bot, Zap, ArrowRight, CheckCircle, Package } from 'lucide-react';
+import { Terminal, Code, Bot, Zap, ArrowRight, CheckCircle } from 'lucide-react';
 import { PublicLayout } from '@/components/PublicLayout';
 
 const sections = [
@@ -136,25 +136,19 @@ curl -X POST https://your-instance.com/v1/events \\
 
               <div className="space-y-6">
                 <div className="data-card p-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Package className="w-4 h-4 text-brand" />
-                    <h3 className="font-semibold">Installation</h3>
-                  </div>
-                  <pre className="text-sm font-mono text-[#F4F6FF] bg-white/5 rounded-lg p-4 mb-4 overflow-x-auto whitespace-pre">pip install jarvis-mc-mcp</pre>
-                </div>
-
-                <div className="data-card p-6">
                   <h3 className="font-semibold mb-4 flex items-center gap-2">
                     <Bot className="w-4 h-4 text-brand" />
                     Claude Code
                   </h3>
-                  <pre className="text-sm font-mono text-[#F4F6FF] bg-white/5 rounded-lg p-4 overflow-x-auto whitespace-pre">{`claude mcp add jarvis \\
-  -e JARVIS_TOKEN=<your-agent-token> \\
-  -e JARVIS_URL=https://your-instance.com \\
-  -- jarvis-mcp`}</pre>
+                  <p className="text-xs text-[#A7ACBF] mb-3">One command — no installation required. Find your token on the Agent Detail page.</p>
+                  <pre className="text-sm font-mono text-[#F4F6FF] bg-white/5 rounded-lg p-4 overflow-x-auto whitespace-pre">{`claude mcp add --transport http jarvis "https://your-instance.com/mcp?token=<your-agent-token>"`}</pre>
                   <p className="text-xs text-[#A7ACBF] mt-3">
-                    Claude will now have access to <code className="text-brand">log_action</code> and{' '}
-                    <code className="text-brand">request_approval</code> tools.
+                    Claude will now have access to <code className="text-brand">log_action</code>,{' '}
+                    <code className="text-brand">request_approval</code>,{' '}
+                    <code className="text-brand">fetch_human_messages</code>,{' '}
+                    <code className="text-brand">send_human_reply</code>,{' '}
+                    <code className="text-brand">get_workshop_tasks</code>, and{' '}
+                    <code className="text-brand">update_workshop_task_status</code> tools.
                   </p>
                 </div>
 
@@ -163,27 +157,8 @@ curl -X POST https://your-instance.com/v1/events \\
                     <Terminal className="w-4 h-4 text-brand" />
                     Codex CLI
                   </h3>
-                  <pre className="text-sm font-mono text-[#F4F6FF] bg-white/5 rounded-lg p-4 overflow-x-auto whitespace-pre">{`codex mcp add jarvis \\
-  --env JARVIS_TOKEN=<your-agent-token> \\
-  --env JARVIS_URL=https://your-instance.com \\
-  -- jarvis-mcp`}</pre>
-                </div>
-
-                <div className="data-card p-6">
-                  <h3 className="font-semibold mb-4 flex items-center gap-2">
-                    <Code className="w-4 h-4 text-brand" />
-                    OpenAI Agents SDK
-                  </h3>
-                  <pre className="text-sm font-mono text-[#F4F6FF] bg-white/5 rounded-lg p-4 overflow-x-auto whitespace-pre">{`from agents.mcp import MCPServerStdio
-
-jarvis = MCPServerStdio(
-    command="jarvis-mcp",
-    env={
-        "JARVIS_TOKEN": "<your-agent-token>",
-        "JARVIS_URL": "https://your-instance.com"
-    }
-)
-agent = Agent(mcp_servers=[jarvis])`}</pre>
+                  <p className="text-xs text-[#A7ACBF] mb-3">One command — no installation required.</p>
+                  <pre className="text-sm font-mono text-[#F4F6FF] bg-white/5 rounded-lg p-4 overflow-x-auto whitespace-pre">{`codex mcp add --transport http jarvis "https://your-instance.com/mcp?token=<your-agent-token>"`}</pre>
                 </div>
 
                 <div className="data-card p-6">
@@ -191,14 +166,24 @@ agent = Agent(mcp_servers=[jarvis])`}</pre>
                   <pre className="text-sm font-mono text-[#F4F6FF] bg-white/5 rounded-lg p-4 overflow-x-auto whitespace-pre">{`{
   "mcpServers": {
     "jarvis": {
-      "command": "jarvis-mcp",
-      "env": {
-        "JARVIS_TOKEN": "<your-agent-token>",
-        "JARVIS_URL": "https://your-instance.com"
-      }
+      "type": "http",
+      "url": "https://your-instance.com/mcp?token=<your-agent-token>"
     }
   }
 }`}</pre>
+                </div>
+
+                <div className="data-card p-6">
+                  <h3 className="font-semibold mb-4 flex items-center gap-2">
+                    <Code className="w-4 h-4 text-brand" />
+                    OpenAI Agents SDK
+                  </h3>
+                  <pre className="text-sm font-mono text-[#F4F6FF] bg-white/5 rounded-lg p-4 overflow-x-auto whitespace-pre">{`from agents.mcp import MCPServerHTTP
+
+jarvis = MCPServerHTTP(
+    url="https://your-instance.com/mcp?token=<your-agent-token>"
+)
+agent = Agent(mcp_servers=[jarvis])`}</pre>
                 </div>
               </div>
             </section>

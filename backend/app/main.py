@@ -1612,12 +1612,12 @@ def post_comms_reply(
     return _comms_message_from_row(msg_row)
 
 
-@app.post("/v1/comms/typing", status_code=status.HTTP_204_NO_CONTENT)
+@app.post("/v1/comms/typing", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
 def post_comms_typing(
     payload: CommsTypingRequest,
     x_agent_token: str | None = Header(default=None, alias="X-Agent-Token"),
     connection: Connection[dict[str, Any]] = Depends(get_db),
-) -> None:
+) -> Response:
     """Agent signals typing status to the dashboard. No DB write — ephemeral SSE signal only."""
     agent_id = _require_agent_id(connection, x_agent_token)
     workspace_row = connection.execute(
@@ -1630,14 +1630,15 @@ def post_comms_typing(
         f"comms:{workspace_row['workspace_id']}",
         _json.dumps({"type": "typing", "agentId": str(agent_id), "isTyping": payload.isTyping}),
     )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@app.post("/v1/comms/stream", status_code=status.HTTP_204_NO_CONTENT)
+@app.post("/v1/comms/stream", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
 def post_comms_stream_chunk(
     payload: CommsStreamChunkRequest,
     x_agent_token: str | None = Header(default=None, alias="X-Agent-Token"),
     connection: Connection[dict[str, Any]] = Depends(get_db),
-) -> None:
+) -> Response:
     """Agent streams a token chunk to the dashboard. No DB write — ephemeral SSE only."""
     agent_id = _require_agent_id(connection, x_agent_token)
     workspace_row = connection.execute(
@@ -1650,6 +1651,7 @@ def post_comms_stream_chunk(
         f"comms:{workspace_row['workspace_id']}",
         _json.dumps({"type": "chunk", "agentId": str(agent_id), "content": payload.content}),
     )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 # ============================================================================
@@ -2125,3 +2127,505 @@ def get_agent_secret(
         raise HTTPException(status_code=500, detail="Decryption failed.") from exc
 
     return {"key": key_name.upper(), "value": plaintext}
+
+
+# ── HTTP MCP transport ─────────────────────────────────────────────────────────
+# Implements MCP Streamable HTTP (JSON-RPC 2.0 over POST).
+# Connect with: claude mcp add --transport http jarvis https://your-jarvis.com/mcp?token=YOUR_TOKEN
+
+_MCP_TOOL_DEFINITIONS: list[dict[str, Any]] = [
+    {
+        "name": "log_action",
+        "description": (
+            "Log a significant action or milestone to the Jarvis Mission Control dashboard. "
+            "Use this for important steps, completed tasks, or notable events — "
+            "not routine file reads, searches, or minor operations."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "message": {"type": "string", "description": "What you did or are doing"},
+                "cost": {
+                    "type": "number",
+                    "description": "Estimated USD cost incurred (0 if unknown or not applicable)",
+                    "default": 0,
+                },
+                "type": {
+                    "type": "string",
+                    "enum": ["action", "completion", "error", "tool_call"],
+                    "description": "Event type",
+                    "default": "action",
+                },
+            },
+            "required": ["message"],
+        },
+    },
+    {
+        "name": "request_approval",
+        "description": (
+            "Request human approval before proceeding with a significant, irreversible, or risky action. "
+            "BLOCKS until the human approves or rejects in the Jarvis dashboard inbox. "
+            "Always call this before: deleting files or data, pushing code, sending emails or messages, "
+            "making purchases, modifying production systems, or any action that cannot be undone. "
+            "Returns the human's decision so you can proceed or abort accordingly."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "description": "Explain what you've done so far and what you're about to do",
+                },
+                "proposed_action": {
+                    "type": "string",
+                    "description": "The specific action requiring approval (shown to the human reviewer)",
+                },
+                "completed_actions": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of actions already completed, for context",
+                    "default": [],
+                },
+                "timeout_minutes": {
+                    "type": "integer",
+                    "description": "Minutes to wait before timing out. Defaults to 5.",
+                    "default": 5,
+                },
+            },
+            "required": ["message", "proposed_action"],
+        },
+    },
+    {
+        "name": "fetch_human_messages",
+        "description": (
+            "Fetch pending human messages from the Jarvis Comms Hub. "
+            "Returns a list of messages the user has sent from the dashboard that are waiting for an agent reply. "
+            "Use this to implement a poll-and-reply loop: check for messages, process them, then call send_human_reply."
+        ),
+        "inputSchema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "get_workshop_tasks",
+        "description": (
+            "Fetch tasks assigned to this agent from the Workshop. "
+            "Returns backlog and in-progress tasks in priority order (in-progress first). "
+            "Use this at the start of a session to discover what work is queued for you. "
+            "After fetching, call update_workshop_task_status to move tasks through the pipeline."
+        ),
+        "inputSchema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "update_workshop_task_status",
+        "description": (
+            "Update the status of a Workshop task assigned to this agent. "
+            "Call this to move a task from 'backlog' → 'in_progress' when starting, "
+            "and from 'in_progress' → 'done' when complete. "
+            "The task_id comes from get_workshop_tasks."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "task_id": {"type": "string", "description": "UUID of the workshop task to update"},
+                "status": {
+                    "type": "string",
+                    "enum": ["backlog", "in_progress", "done"],
+                    "description": "New status for the task",
+                },
+            },
+            "required": ["task_id", "status"],
+        },
+    },
+    {
+        "name": "send_human_reply",
+        "description": (
+            "Send a reply to a human message in the Jarvis Comms Hub. "
+            "After calling fetch_human_messages and processing a message, use this to send a reply. "
+            "Provide the command_id from the fetched message so the original message is marked as responded."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "content": {"type": "string", "description": "The reply text to send back to the human"},
+                "command_id": {
+                    "type": "string",
+                    "description": "The command ID from fetch_human_messages (used to ack and link the reply)",
+                },
+                "reply_to_message_id": {
+                    "type": "string",
+                    "description": "The comms message UUID to reply to (found in the command payload as messageId)",
+                },
+                "cost": {
+                    "type": "number",
+                    "description": "Optional USD cost incurred to generate this reply",
+                    "default": 0,
+                },
+                "model": {"type": "string", "description": "Optional model name used to generate this reply"},
+            },
+            "required": ["content", "command_id"],
+        },
+    },
+]
+
+
+def _mcp_result(rpc_id: Any, text: str) -> JSONResponse:
+    return JSONResponse({
+        "jsonrpc": "2.0",
+        "id": rpc_id,
+        "result": {"content": [{"type": "text", "text": text}]},
+    })
+
+
+def _mcp_tool_error(rpc_id: Any, text: str) -> JSONResponse:
+    return JSONResponse({
+        "jsonrpc": "2.0",
+        "id": rpc_id,
+        "result": {"content": [{"type": "text", "text": text}], "isError": True},
+    })
+
+
+@app.post("/mcp")
+async def mcp_http_endpoint(
+    request: Request,
+    token: str | None = Query(default=None),
+) -> Response:
+    """MCP Streamable HTTP transport — connect any MCP-compatible agent with one command.
+
+    Usage:
+        claude mcp add --transport http jarvis https://your-jarvis.com/mcp?token=YOUR_TOKEN
+    """
+    # Accept token from query param or Authorization: Bearer header
+    if not token:
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:]
+    if not token:
+        return JSONResponse(
+            status_code=401,
+            content={"error": "Missing token. Add ?token=YOUR_TOKEN to the MCP URL."},
+        )
+
+    pool = get_db_pool()
+    with pool.connection() as conn:
+        token_hash = hash_agent_token(token)
+        row = conn.execute(
+            "select agent_id from agent_tokens where token_hash = %s and revoked_at is null",
+            (token_hash,),
+        ).fetchone()
+        if row is None:
+            return JSONResponse(status_code=401, content={"error": "Invalid or revoked token."})
+        agent_id: UUID = row["agent_id"]
+        conn.execute(
+            "update agents set last_seen_at = now() where id = %s::uuid",
+            (agent_id,),
+        )
+
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse(status_code=400, content={"error": "Invalid JSON body."})
+
+    method: str = body.get("method", "")
+    params: dict = body.get("params") or {}
+    rpc_id = body.get("id")
+
+    if method == "initialize":
+        return JSONResponse({
+            "jsonrpc": "2.0",
+            "id": rpc_id,
+            "result": {
+                "protocolVersion": "2024-11-05",
+                "capabilities": {"tools": {}},
+                "serverInfo": {"name": "jarvis-mc", "version": "1.0.0"},
+            },
+        })
+
+    if method in ("notifications/initialized", "ping"):
+        return JSONResponse({"jsonrpc": "2.0", "id": rpc_id, "result": {}})
+
+    if method == "tools/list":
+        return JSONResponse({
+            "jsonrpc": "2.0",
+            "id": rpc_id,
+            "result": {"tools": _MCP_TOOL_DEFINITIONS},
+        })
+
+    if method == "tools/call":
+        tool_name: str = params.get("name", "")
+        arguments: dict = params.get("arguments") or {}
+        return await _mcp_call_tool(rpc_id, agent_id, tool_name, arguments)
+
+    return JSONResponse({
+        "jsonrpc": "2.0",
+        "id": rpc_id,
+        "error": {"code": -32601, "message": f"Method not found: {method}"},
+    })
+
+
+async def _mcp_call_tool(
+    rpc_id: Any,
+    agent_id: UUID,
+    tool_name: str,
+    arguments: dict,
+) -> JSONResponse:
+    pool = get_db_pool()
+
+    # ── log_action ───────────────────────────────────────────────────────────────
+    if tool_name == "log_action":
+        with pool.connection() as conn:
+            agent_row = conn.execute(
+                "select workspace_id from agents where id = %s::uuid", (agent_id,)
+            ).fetchone()
+            if agent_row is None:
+                return _mcp_tool_error(rpc_id, "Error: Agent not found.")
+            workspace_id = agent_row["workspace_id"]
+            event_row = conn.execute(
+                """
+                insert into events (agent_id, workspace_id, type, message, cost,
+                                    requires_approval, proposed_action, completed_actions)
+                values (%s::uuid, %s::uuid, %s, %s, %s, false, null, %s)
+                returning id
+                """,
+                (
+                    agent_id,
+                    workspace_id,
+                    arguments.get("type", "action"),
+                    arguments["message"],
+                    arguments.get("cost", 0),
+                    Jsonb([]),
+                ),
+            ).fetchone()
+        _sse_publish(f"events:{workspace_id}", str(agent_id))
+        _sse_publish(f"spend:{workspace_id}")
+        return _mcp_result(rpc_id, f"Logged to Jarvis (event: {event_row['id']})")
+
+    # ── request_approval ─────────────────────────────────────────────────────────
+    if tool_name == "request_approval":
+        timeout_minutes = int(arguments.get("timeout_minutes", 5))
+        deadline = time.monotonic() + (timeout_minutes * 60)
+
+        with pool.connection() as conn:
+            agent_row = conn.execute(
+                "select workspace_id from agents where id = %s::uuid", (agent_id,)
+            ).fetchone()
+            if agent_row is None:
+                return _mcp_tool_error(rpc_id, "Error: Agent not found.")
+            workspace_id = agent_row["workspace_id"]
+
+            conn.execute(
+                """
+                insert into events (agent_id, workspace_id, type, message, cost,
+                                    requires_approval, proposed_action, completed_actions)
+                values (%s::uuid, %s::uuid, 'approval_request', %s, 0, true, %s, %s)
+                """,
+                (
+                    agent_id,
+                    workspace_id,
+                    arguments["message"],
+                    arguments["proposed_action"],
+                    Jsonb(arguments.get("completed_actions", [])),
+                ),
+            )
+            conn.execute(
+                """
+                insert into tasks (agent_id, workspace_id, proposed_action, completed_actions, status)
+                values (%s::uuid, %s::uuid, %s, %s, 'pending')
+                """,
+                (
+                    agent_id,
+                    workspace_id,
+                    arguments["proposed_action"],
+                    Jsonb(arguments.get("completed_actions", [])),
+                ),
+            )
+            conn.execute(
+                "update agents set status = 'waiting_approval' where id = %s::uuid",
+                (agent_id,),
+            )
+
+        _sse_publish(f"events:{workspace_id}", str(agent_id))
+        _sse_publish(f"inbox:{workspace_id}")
+
+        # Long-poll for the approval_decision command using internal SSE queues
+        channel = f"commands:{agent_id}"
+        while time.monotonic() < deadline:
+            remaining = deadline - time.monotonic()
+            poll_timeout = min(30.0, max(1.0, remaining))
+            q: asyncio.Queue[str] = asyncio.Queue()
+            _sse_queues[channel].append(q)
+            try:
+                await asyncio.wait_for(q.get(), timeout=poll_timeout)
+            except asyncio.TimeoutError:
+                pass
+            finally:
+                try:
+                    _sse_queues[channel].remove(q)
+                except ValueError:
+                    pass
+
+            with pool.connection() as conn:
+                cmd_row = conn.execute(
+                    """
+                    select id, payload
+                    from commands
+                    where agent_id = %s::uuid
+                      and kind = 'approval_decision'
+                      and status = 'pending'
+                    order by created_at asc
+                    limit 1
+                    """,
+                    (agent_id,),
+                ).fetchone()
+
+            if cmd_row:
+                with pool.connection() as conn:
+                    conn.execute(
+                        "update commands set status = 'acked', acked_at = now() where id = %s::uuid",
+                        (cmd_row["id"],),
+                    )
+                payload_data = cmd_row["payload"] or {}
+                decision = payload_data.get("decision", "unknown")
+                comment = payload_data.get("comment", "")
+                result_text = f"Decision: {decision}"
+                if comment:
+                    result_text += f". Comment: {comment}"
+                return _mcp_result(rpc_id, result_text)
+
+        return _mcp_result(
+            rpc_id,
+            f"Decision: timed out after {timeout_minutes} minute(s). No response from dashboard. Treat as rejected and abort.",
+        )
+
+    # ── fetch_human_messages ─────────────────────────────────────────────────────
+    if tool_name == "fetch_human_messages":
+        with pool.connection() as conn:
+            rows = conn.execute(
+                """
+                select id, payload
+                from commands
+                where agent_id = %s::uuid
+                  and kind = 'human_message'
+                  and status = 'pending'
+                order by created_at asc
+                """,
+                (agent_id,),
+            ).fetchall()
+
+        if not rows:
+            return _mcp_result(rpc_id, "No pending human messages.")
+
+        lines = []
+        for row in rows:
+            payload_data = row["payload"] or {}
+            lines.append(
+                f"command_id: {row['id']}\n"
+                f"message_id: {payload_data.get('messageId', '')}\n"
+                f"content: {payload_data.get('content', '')}"
+            )
+        return _mcp_result(rpc_id, "\n\n---\n\n".join(lines))
+
+    # ── get_workshop_tasks ───────────────────────────────────────────────────────
+    if tool_name == "get_workshop_tasks":
+        with pool.connection() as conn:
+            rows = conn.execute(
+                _WORKSHOP_SELECT + """
+                where wt.agent_id = %s::uuid
+                  and wt.status in ('backlog', 'in_progress')
+                order by
+                  case wt.status when 'in_progress' then 0 else 1 end,
+                  wt.created_at asc
+                """,
+                (agent_id,),
+            ).fetchall()
+
+        if not rows:
+            return _mcp_result(rpc_id, "No tasks assigned to this agent.")
+
+        lines = []
+        for row in rows:
+            desc = f"\n  description: {row['description']}" if row.get("description") else ""
+            lines.append(
+                f"task_id: {row['id']}\n"
+                f"  title: {row['title']}{desc}\n"
+                f"  status: {row['status']}"
+            )
+        return _mcp_result(rpc_id, "\n\n".join(lines))
+
+    # ── update_workshop_task_status ──────────────────────────────────────────────
+    if tool_name == "update_workshop_task_status":
+        task_id_str = arguments.get("task_id", "")
+        new_status = arguments.get("status", "")
+        with pool.connection() as conn:
+            updated = conn.execute(
+                """
+                update workshop_tasks
+                set status = %s, updated_at = now()
+                where id = %s::uuid and agent_id = %s::uuid
+                returning id, title, workspace_id
+                """,
+                (new_status, task_id_str, agent_id),
+            ).fetchone()
+        if updated is None:
+            return _mcp_tool_error(rpc_id, "Task not found or not assigned to this agent.")
+        _sse_publish(f"workshop:{updated['workspace_id']}")
+        return _mcp_result(rpc_id, f"Task '{updated['title']}' moved to {new_status}.")
+
+    # ── send_human_reply ─────────────────────────────────────────────────────────
+    if tool_name == "send_human_reply":
+        content = arguments.get("content", "")
+        command_id_str = arguments.get("command_id", "")
+        reply_to_message_id_str = arguments.get("reply_to_message_id")
+        metadata: dict = {}
+        if arguments.get("cost"):
+            metadata["cost"] = arguments["cost"]
+        if arguments.get("model"):
+            metadata["model"] = arguments["model"]
+
+        with pool.connection() as conn:
+            agent_row = conn.execute(
+                "select workspace_id from agents where id = %s::uuid", (agent_id,)
+            ).fetchone()
+            if agent_row is None:
+                return _mcp_tool_error(rpc_id, "Error: Agent not found.")
+            workspace_id = agent_row["workspace_id"]
+
+            reply_to_id = UUID(reply_to_message_id_str) if reply_to_message_id_str else None
+
+            with conn.transaction():
+                msg_row = conn.execute(
+                    """
+                    insert into comms_messages
+                      (workspace_id, agent_id, sender, content, message_status,
+                       reply_to_message_id, metadata)
+                    values (%s::uuid, %s::uuid, 'agent', %s, 'responded', %s, %s)
+                    returning id
+                    """,
+                    (workspace_id, agent_id, content, reply_to_id, Jsonb(metadata)),
+                ).fetchone()
+
+                if reply_to_id:
+                    conn.execute(
+                        """
+                        update comms_messages
+                        set message_status = 'responded', responded_at = now()
+                        where id = %s::uuid
+                        """,
+                        (reply_to_id,),
+                    )
+
+                conn.execute(
+                    """
+                    update commands
+                    set status = 'acked', acked_at = now()
+                    where id = %s::uuid and agent_id = %s::uuid
+                    """,
+                    (UUID(command_id_str), agent_id),
+                )
+
+        _sse_publish(f"comms:{workspace_id}", '{"type":"update"}')
+        return _mcp_result(rpc_id, f"Reply sent (message: {msg_row['id']})")
+
+    return JSONResponse({
+        "jsonrpc": "2.0",
+        "id": rpc_id,
+        "error": {"code": -32602, "message": f"Unknown tool: {tool_name}"},
+    })
