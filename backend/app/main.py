@@ -2218,8 +2218,8 @@ _MCP_TOOL_DEFINITIONS: list[dict[str, Any]] = [
             "properties": {
                 "timeout_minutes": {
                     "type": "integer",
-                    "description": "Minutes to wait for a message before returning. Defaults to 30.",
-                    "default": 30,
+                    "description": "Minutes to wait for a message before returning. Defaults to 5.",
+                    "default": 5,
                 },
             },
             "required": [],
@@ -2563,7 +2563,7 @@ async def _mcp_call_tool(
 
     # ── wait_for_human_message ───────────────────────────────────────────────────
     if tool_name == "wait_for_human_message":
-        timeout_minutes = int(arguments.get("timeout_minutes", 30))
+        timeout_minutes = int(arguments.get("timeout_minutes", 5))
         deadline = time.monotonic() + (timeout_minutes * 60)
 
         def _ack_and_format(rows: list) -> str:
