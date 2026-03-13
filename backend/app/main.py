@@ -2205,6 +2205,27 @@ _MCP_TOOL_DEFINITIONS: list[dict[str, Any]] = [
         "inputSchema": {"type": "object", "properties": {}, "required": []},
     },
     {
+        "name": "wait_for_human_message",
+        "description": (
+            "Block and wait for the next human message from the Jarvis Comms Hub. "
+            "Call this after completing a task to wait for the next instruction from the dashboard. "
+            "Returns as soon as a message arrives (or after timeout). "
+            "Use this to create a continuous loop: finish task → wait_for_human_message → process → reply → repeat. "
+            "This is the preferred way to keep Claude Code or Codex responsive to dashboard messages."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "timeout_minutes": {
+                    "type": "integer",
+                    "description": "Minutes to wait for a message before returning. Defaults to 30.",
+                    "default": 30,
+                },
+            },
+            "required": [],
+        },
+    },
+    {
         "name": "get_workshop_tasks",
         "description": (
             "Fetch tasks assigned to this agent from the Workshop. "
@@ -2500,7 +2521,7 @@ async def _mcp_call_tool(
         with pool.connection() as conn:
             rows = conn.execute(
                 """
-                select id, payload
+                select id, payload, source_message_id
                 from commands
                 where agent_id = %s::uuid
                   and kind = 'human_message'
@@ -2513,6 +2534,23 @@ async def _mcp_call_tool(
         if not rows:
             return _mcp_result(rpc_id, "No pending human messages.")
 
+        # Ack all fetched commands → marks comms messages as 'delivered'
+        with pool.connection() as conn:
+            for row in rows:
+                conn.execute(
+                    "update commands set status = 'acked', acked_at = now() where id = %s::uuid",
+                    (row["id"],),
+                )
+                if row.get("source_message_id"):
+                    conn.execute(
+                        """
+                        update comms_messages
+                        set message_status = 'delivered', delivered_at = now()
+                        where id = %s::uuid and message_status = 'queued'
+                        """,
+                        (row["source_message_id"],),
+                    )
+
         lines = []
         for row in rows:
             payload_data = row["payload"] or {}
@@ -2522,6 +2560,89 @@ async def _mcp_call_tool(
                 f"content: {payload_data.get('content', '')}"
             )
         return _mcp_result(rpc_id, "\n\n---\n\n".join(lines))
+
+    # ── wait_for_human_message ───────────────────────────────────────────────────
+    if tool_name == "wait_for_human_message":
+        timeout_minutes = int(arguments.get("timeout_minutes", 30))
+        deadline = time.monotonic() + (timeout_minutes * 60)
+
+        def _ack_and_format(rows: list) -> str:
+            with pool.connection() as conn:
+                for row in rows:
+                    conn.execute(
+                        "update commands set status = 'acked', acked_at = now() where id = %s::uuid",
+                        (row["id"],),
+                    )
+                    if row.get("source_message_id"):
+                        conn.execute(
+                            """
+                            update comms_messages
+                            set message_status = 'delivered', delivered_at = now()
+                            where id = %s::uuid and message_status = 'queued'
+                            """,
+                            (row["source_message_id"],),
+                        )
+            lines = []
+            for row in rows:
+                payload_data = row["payload"] or {}
+                lines.append(
+                    f"command_id: {row['id']}\n"
+                    f"message_id: {payload_data.get('messageId', '')}\n"
+                    f"content: {payload_data.get('content', '')}"
+                )
+            return "\n\n---\n\n".join(lines)
+
+        # Check immediately for any already-pending messages first
+        with pool.connection() as conn:
+            rows = conn.execute(
+                """
+                select id, payload, source_message_id
+                from commands
+                where agent_id = %s::uuid
+                  and kind = 'human_message'
+                  and status = 'pending'
+                order by created_at asc
+                """,
+                (agent_id,),
+            ).fetchall()
+
+        if rows:
+            return _mcp_result(rpc_id, _ack_and_format(rows))
+
+        # No messages yet — long-poll using SSE queue (no DB connection held during wait)
+        channel = f"commands:{agent_id}"
+        while time.monotonic() < deadline:
+            remaining = deadline - time.monotonic()
+            poll_timeout = min(30.0, max(1.0, remaining))
+            q: asyncio.Queue[str] = asyncio.Queue()
+            _sse_queues[channel].append(q)
+            try:
+                await asyncio.wait_for(q.get(), timeout=poll_timeout)
+            except asyncio.TimeoutError:
+                pass
+            finally:
+                try:
+                    _sse_queues[channel].remove(q)
+                except ValueError:
+                    pass
+
+            with pool.connection() as conn:
+                rows = conn.execute(
+                    """
+                    select id, payload, source_message_id
+                    from commands
+                    where agent_id = %s::uuid
+                      and kind = 'human_message'
+                      and status = 'pending'
+                    order by created_at asc
+                    """,
+                    (agent_id,),
+                ).fetchall()
+
+            if rows:
+                return _mcp_result(rpc_id, _ack_and_format(rows))
+
+        return _mcp_result(rpc_id, f"No messages received after {timeout_minutes} minute(s). Call wait_for_human_message again to keep listening.")
 
     # ── get_workshop_tasks ───────────────────────────────────────────────────────
     if tool_name == "get_workshop_tasks":
