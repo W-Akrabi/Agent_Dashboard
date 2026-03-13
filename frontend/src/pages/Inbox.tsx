@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CheckCircle, XCircle, MessageSquare, Bot, Clock } from 'lucide-react';
 import { SuccessIcon } from '@/components/ui/animated-state-icons';
-import { decideInboxItem, getInbox } from '@/lib/api';
+import { decideInboxItem, getInbox, getSseToken } from '@/lib/api';
 import type { InboxItem } from '@/types/index';
 import { useInvalidation } from '@/contexts/InvalidationContext';
-import { supabase } from '@/lib/supabase';
 
 const _API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8000';
 
@@ -48,9 +47,10 @@ export default function Inbox() {
 
     const connect = async () => {
       if (!mounted) return;
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token || !mounted) return;
-      es = new EventSource(`${_API_BASE}/v1/stream/inbox?token=${session.access_token}`);
+      let sseToken: string;
+      try { sseToken = await getSseToken(); } catch { return; }
+      if (!mounted) return;
+      es = new EventSource(`${_API_BASE}/v1/stream/inbox?token=${sseToken}`);
       es.onmessage = () => { void loadInbox(); };
       es.onerror = () => {
         es?.close();

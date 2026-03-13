@@ -218,9 +218,11 @@ export default function Agents() {
                   )}
                   {connectTab === 'n8n' && (
                     <div className="space-y-2">
-                      <p className="text-xs text-[#A7ACBF]">Paste into n8n, Make.com, or Zapier — no headers needed:</p>
-                      <code className="block p-3 bg-white/5 rounded-lg text-xs font-mono break-all">{`${apiBaseUrl}/v1/webhook/${generatedToken}`}</code>
-                      <button onClick={() => copyConnect(`${apiBaseUrl}/v1/webhook/${generatedToken}`)} className="flex items-center gap-1 px-3 py-1.5 bg-brand rounded-lg hover:bg-brand-hover transition-colors text-xs text-white">
+                      <p className="text-xs text-[#A7ACBF]">Paste the URL into n8n, Make.com, or Zapier and add the header below:</p>
+                      <code className="block p-3 bg-white/5 rounded-lg text-xs font-mono break-all">{`${apiBaseUrl}/v1/webhook`}</code>
+                      <p className="text-xs text-[#A7ACBF]">Add a custom HTTP header:</p>
+                      <code className="block p-3 bg-white/5 rounded-lg text-xs font-mono break-all">{`X-Agent-Token: ${generatedToken}`}</code>
+                      <button onClick={() => copyConnect(`${apiBaseUrl}/v1/webhook`)} className="flex items-center gap-1 px-3 py-1.5 bg-brand rounded-lg hover:bg-brand-hover transition-colors text-xs text-white">
                         <CopiedIcon size={14} color="white" />{copiedConnect ? 'Copied!' : 'Copy URL'}
                       </button>
                     </div>
@@ -247,8 +249,8 @@ export default function Agents() {
                   {connectTab === 'other' && (
                     <div className="space-y-2">
                       <p className="text-xs text-[#A7ACBF]">POST from any language or environment:</p>
-                      <code className="block p-3 bg-white/5 rounded-lg text-xs font-mono whitespace-pre-wrap">{`curl -X POST ${apiBaseUrl}/v1/webhook/${generatedToken} \\\n  -H "Content-Type: application/json" \\\n  -d '{"type":"action","message":"Hello from my agent"}'`}</code>
-                      <button onClick={() => copyConnect(`curl -X POST ${apiBaseUrl}/v1/webhook/${generatedToken} -H "Content-Type: application/json" -d '{"type":"action","message":"Hello from my agent"}'`)} className="flex items-center gap-1 px-3 py-1.5 bg-brand rounded-lg hover:bg-brand-hover transition-colors text-xs text-white">
+                      <code className="block p-3 bg-white/5 rounded-lg text-xs font-mono whitespace-pre-wrap">{`curl -X POST ${apiBaseUrl}/v1/webhook \\\n  -H "Content-Type: application/json" \\\n  -H "X-Agent-Token: ${generatedToken}" \\\n  -d '{"type":"action","message":"Hello from my agent"}'`}</code>
+                      <button onClick={() => copyConnect(`curl -X POST ${apiBaseUrl}/v1/webhook -H "Content-Type: application/json" -H "X-Agent-Token: ${generatedToken}" -d '{"type":"action","message":"Hello from my agent"}'`)} className="flex items-center gap-1 px-3 py-1.5 bg-brand rounded-lg hover:bg-brand-hover transition-colors text-xs text-white">
                         <CopiedIcon size={14} color="white" />{copiedConnect ? 'Copied!' : 'Copy command'}
                       </button>
                     </div>

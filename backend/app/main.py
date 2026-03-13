@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import secrets
 import ssl
+import time
 from collections import defaultdict
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -73,6 +75,12 @@ _warned_missing_cryptography = False
 # Sync request handlers call _sse_publish(); async SSE generators await queue.get().
 _sse_queues: dict[str, list[asyncio.Queue[str]]] = defaultdict(list)
 _sse_loop: asyncio.AbstractEventLoop | None = None
+
+# ── SSE short-lived token store ───────────────────────────────────────────────
+# Maps opaque token → (user_id, workspace_id, expiry_epoch_seconds).
+# Tokens are 30-second, single-use: consumed on first SSE connection.
+_SSE_TOKEN_TTL = 30
+_sse_tokens: dict[str, tuple[UUID, UUID, float]] = {}
 
 
 def _sse_publish(channel: str, data: str = "update") -> None:
@@ -415,13 +423,31 @@ def _require_user_auth(
 
 def _require_user_auth_sse(
     token: str | None = Query(default=None),
-    connection: Connection[dict[str, Any]] = Depends(get_db),
 ) -> AuthenticatedUser:
-    """Like _require_user_auth but reads the JWT from a ?token= query param (for EventSource)."""
-    return _require_user_auth(
-        authorization=f"Bearer {token}" if token else None,
-        connection=connection,
-    )
+    """Validates a short-lived opaque SSE token issued by POST /v1/sse-token.
+
+    Tokens are single-use and expire after _SSE_TOKEN_TTL seconds. The
+    returned AuthenticatedUser is held for the lifetime of the SSE connection.
+    """
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing SSE token.",
+        )
+    now = time.time()
+    # Purge expired tokens opportunistically.
+    expired = [t for t, (_, _, exp) in _sse_tokens.items() if exp < now]
+    for t in expired:
+        _sse_tokens.pop(t, None)
+
+    entry = _sse_tokens.pop(token, None)
+    if entry is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired SSE token.",
+        )
+    user_id, workspace_id, _ = entry
+    return AuthenticatedUser(id=user_id, email="", workspace_id=workspace_id)
 
 
 def _require_control_plane_auth(
@@ -511,6 +537,20 @@ def handle_unique_violation(_: Request, __: psycopg.errors.UniqueViolation) -> J
 @app.get("/healthz")
 def healthz() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.post("/v1/sse-token")
+def issue_sse_token(
+    auth_user: AuthenticatedUser = Depends(_require_user_auth),
+) -> dict[str, str]:
+    """Return a short-lived, single-use token for authenticating EventSource (SSE) connections.
+
+    Tokens expire after _SSE_TOKEN_TTL seconds and are consumed on first use,
+    so the JWT never appears in a URL or server access log.
+    """
+    token = secrets.token_urlsafe(32)
+    _sse_tokens[token] = (auth_user.id, auth_user.workspace_id, time.time() + _SSE_TOKEN_TTL)
+    return {"token": token}
 
 
 @app.get("/v1/agents", response_model=list[AgentResponse])
@@ -842,13 +882,13 @@ def ingest_event(
     return EventIngestResponse(event=_event_from_row(event_row), taskId=task_id)
 
 
-@app.post("/v1/webhook/{agent_token}", response_model=WebhookEventResponse, status_code=status.HTTP_201_CREATED)
+@app.post("/v1/webhook", response_model=WebhookEventResponse, status_code=status.HTTP_201_CREATED)
 def webhook_ingest_event(
-    agent_token: str,
     payload: WebhookEventRequest,
+    x_agent_token: str | None = Header(default=None, alias="X-Agent-Token"),
     connection: Connection[dict[str, Any]] = Depends(get_db),
 ) -> WebhookEventResponse:
-    agent_id = _require_agent_id(connection, agent_token)
+    agent_id = _require_agent_id(connection, x_agent_token)
 
     agent_row = connection.execute(
         "select workspace_id from agents where id = %s::uuid",

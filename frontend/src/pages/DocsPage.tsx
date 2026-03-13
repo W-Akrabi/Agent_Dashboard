@@ -339,9 +339,9 @@ agent = Agent(
                   },
                   {
                     method: 'POST',
-                    path: '/v1/webhook/{token}',
-                    desc: 'Webhook URL for n8n, Make.com, and Zapier. Token is in the URL, no headers needed.',
-                    auth: 'Token in URL',
+                    path: '/v1/webhook',
+                    desc: 'Webhook endpoint for n8n, Make.com, Zapier, or any HTTP client. Pass the agent token in the X-Agent-Token header.',
+                    auth: 'X-Agent-Token header',
                     body: `{ "type": "action", "message": "Hello", "cost": 0 }`,
                     response: `{ "ok": true }`,
                   },

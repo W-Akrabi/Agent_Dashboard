@@ -1,8 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getCommsAgents, getCommsMessages, sendCommsMessage } from '@/lib/api';
+import { getCommsAgents, getCommsMessages, getSseToken, sendCommsMessage } from '@/lib/api';
 import { useInvalidation } from '@/contexts/InvalidationContext';
-import { supabase } from '@/lib/supabase';
 import type { CommsAgentSummary, CommsMessage } from '@/types';
 
 const _API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8000';
@@ -206,9 +205,10 @@ export const CommsHub: React.FC = () => {
 
     const connect = async () => {
       if (!mounted) return;
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token || !mounted) return;
-      es = new EventSource(`${_API_BASE}/v1/stream/comms?token=${session.access_token}`);
+      let sseToken: string;
+      try { sseToken = await getSseToken(); } catch { return; }
+      if (!mounted) return;
+      es = new EventSource(`${_API_BASE}/v1/stream/comms?token=${sseToken}`);
       es.onmessage = () => { void fetchAgents(); };
       es.onerror = () => {
         es?.close();
@@ -259,9 +259,10 @@ export const CommsHub: React.FC = () => {
 
     const connect = async () => {
       if (!mounted) return;
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token || !mounted) return;
-      es = new EventSource(`${_API_BASE}/v1/stream/comms?token=${session.access_token}`);
+      let sseToken: string;
+      try { sseToken = await getSseToken(); } catch { return; }
+      if (!mounted) return;
+      es = new EventSource(`${_API_BASE}/v1/stream/comms?token=${sseToken}`);
       es.onmessage = () => { void fetchMessages(selectedId); };
       es.onerror = () => {
         es?.close();

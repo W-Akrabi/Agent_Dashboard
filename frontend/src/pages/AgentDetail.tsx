@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { supabase } from '@/lib/supabase';
 import {
   Bot,
   Play,
@@ -16,7 +15,7 @@ import {
 } from 'lucide-react';
 import { CopiedIcon } from '@/components/ui/animated-state-icons';
 import type { Agent, AgentEvent } from '@/types/index';
-import { getAgent, getAgentEvents, revokeAgentToken, updateAgentStatus } from '@/lib/api';
+import { getAgent, getAgentEvents, getSseToken, revokeAgentToken, updateAgentStatus } from '@/lib/api';
 import { useInvalidation } from '@/contexts/InvalidationContext';
 import {
   Dialog,
@@ -98,9 +97,10 @@ export default function AgentDetail() {
 
     const connect = async () => {
       if (!mounted) return;
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token || !mounted) return;
-      es = new EventSource(`${apiBase}/v1/stream/events?agent_id=${id}&token=${session.access_token}`);
+      let sseToken: string;
+      try { sseToken = await getSseToken(); } catch { return; }
+      if (!mounted) return;
+      es = new EventSource(`${apiBase}/v1/stream/events?agent_id=${id}&token=${sseToken}`);
       es.onmessage = () => { void loadData(); };
       es.onerror = () => {
         es?.close();
@@ -351,9 +351,11 @@ export default function AgentDetail() {
         )}
         {connectTab === 'n8n' && (
           <div className="space-y-2">
-            <p className="text-xs text-[#A7ACBF]">Paste into n8n, Make.com, or Zapier — no headers needed:</p>
-            <code className="block p-3 bg-white/5 rounded-lg text-sm font-mono break-all">{`${apiBaseUrl}/v1/webhook/<your-token>`}</code>
-            <button onClick={() => copyConnect(`${apiBaseUrl}/v1/webhook/<your-token>`)} className="flex items-center gap-1 px-3 py-1.5 bg-brand rounded-lg hover:bg-brand-hover transition-colors text-xs text-white">
+            <p className="text-xs text-[#A7ACBF]">Paste the URL into n8n, Make.com, or Zapier and add the header below:</p>
+            <code className="block p-3 bg-white/5 rounded-lg text-sm font-mono break-all">{`${apiBaseUrl}/v1/webhook`}</code>
+            <p className="text-xs text-[#A7ACBF]">Add a custom HTTP header:</p>
+            <code className="block p-3 bg-white/5 rounded-lg text-sm font-mono break-all">{`X-Agent-Token: <your-token>`}</code>
+            <button onClick={() => copyConnect(`${apiBaseUrl}/v1/webhook`)} className="flex items-center gap-1 px-3 py-1.5 bg-brand rounded-lg hover:bg-brand-hover transition-colors text-xs text-white">
               <CopiedIcon size={14} color="white" />{copiedConnect ? 'Copied!' : 'Copy URL'}
             </button>
           </div>
@@ -380,8 +382,8 @@ export default function AgentDetail() {
         {connectTab === 'other' && (
           <div className="space-y-2">
             <p className="text-xs text-[#A7ACBF]">POST from any language or environment:</p>
-            <code className="block p-3 bg-white/5 rounded-lg text-sm font-mono whitespace-pre-wrap">{`curl -X POST ${apiBaseUrl}/v1/webhook/<your-token> \\\n  -H "Content-Type: application/json" \\\n  -d '{"type":"action","message":"Hello from my agent"}'`}</code>
-            <button onClick={() => copyConnect(`curl -X POST ${apiBaseUrl}/v1/webhook/<your-token> -H "Content-Type: application/json" -d '{"type":"action","message":"Hello from my agent"}'`)} className="flex items-center gap-1 px-3 py-1.5 bg-brand rounded-lg hover:bg-brand-hover transition-colors text-xs text-white">
+            <code className="block p-3 bg-white/5 rounded-lg text-sm font-mono whitespace-pre-wrap">{`curl -X POST ${apiBaseUrl}/v1/webhook \\\n  -H "Content-Type: application/json" \\\n  -H "X-Agent-Token: <your-token>" \\\n  -d '{"type":"action","message":"Hello from my agent"}'`}</code>
+            <button onClick={() => copyConnect(`curl -X POST ${apiBaseUrl}/v1/webhook -H "Content-Type: application/json" -H "X-Agent-Token: <your-token>" -d '{"type":"action","message":"Hello from my agent"}'`)} className="flex items-center gap-1 px-3 py-1.5 bg-brand rounded-lg hover:bg-brand-hover transition-colors text-xs text-white">
               <CopiedIcon size={14} color="white" />{copiedConnect ? 'Copied!' : 'Copy command'}
             </button>
           </div>

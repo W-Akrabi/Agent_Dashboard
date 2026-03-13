@@ -213,3 +213,14 @@ export function deleteVaultSecret(secretId: string) {
     method: 'DELETE',
   });
 }
+
+// ── SSE authentication ────────────────────────────────────────────────────────
+
+/**
+ * Exchange the current JWT for a short-lived, single-use opaque token that
+ * can be safely embedded in an EventSource URL without appearing in logs.
+ */
+export async function getSseToken(): Promise<string> {
+  const { token } = await apiRequest<{ token: string }>('/v1/sse-token', { method: 'POST' });
+  return token;
+}

@@ -2,9 +2,8 @@ import { useEffect, useState } from 'react';
 import { DollarSign, TrendingUp, TrendingDown, AlertTriangle, Edit2, Check, X } from 'lucide-react';
 import { NotificationIcon } from '@/components/ui/animated-state-icons';
 import type { SpendData } from '@/types/index';
-import { getSpend, updateBudget } from '@/lib/api';
+import { getSpend, getSseToken, updateBudget } from '@/lib/api';
 import { useInvalidation } from '@/contexts/InvalidationContext';
-import { supabase } from '@/lib/supabase';
 
 const _API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8000';
 
@@ -53,9 +52,10 @@ export default function Spend() {
 
     const connect = async () => {
       if (!mounted) return;
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token || !mounted) return;
-      es = new EventSource(`${_API_BASE}/v1/stream/spend?token=${session.access_token}`);
+      let sseToken: string;
+      try { sseToken = await getSseToken(); } catch { return; }
+      if (!mounted) return;
+      es = new EventSource(`${_API_BASE}/v1/stream/spend?token=${sseToken}`);
       es.onmessage = () => { void loadSpend(); };
       es.onerror = () => {
         es?.close();
