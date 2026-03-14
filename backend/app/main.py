@@ -947,6 +947,18 @@ def ingest_event(
     return EventIngestResponse(event=_event_from_row(event_row), taskId=task_id)
 
 
+@app.post("/v1/webhook/{agent_token}", include_in_schema=False)
+def webhook_legacy_redirect(agent_token: str) -> None:  # noqa: ARG001
+    raise HTTPException(
+        status_code=status.HTTP_410_GONE,
+        detail=(
+            "This webhook URL format is no longer supported. "
+            "Use POST /v1/webhook with the X-Agent-Token header instead. "
+            "See the Docs page in your dashboard for updated examples."
+        ),
+    )
+
+
 @app.post("/v1/webhook", response_model=WebhookEventResponse, status_code=status.HTTP_201_CREATED)
 def webhook_ingest_event(
     payload: WebhookEventRequest,
