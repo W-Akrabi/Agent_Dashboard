@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { Link } from 'react-router-dom';
-import { ContainerScroll } from '@/components/ui/container-scroll-animation';
 import { SplineScene } from '@/components/ui/splite';
 import { Spotlight } from '@/components/ui/spotlight';
 import { Header1 } from '@/components/ui/header';
@@ -318,22 +317,14 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Dashboard Preview — ContainerScroll */}
-      <section className="relative z-10">
-        <ContainerScroll
-          titleComponent={
-            <h2 className="text-3xl md:text-4xl font-bold text-[#F4F6FF] mb-4">
-              Your agents. <span className="text-gradient">At a glance.</span>
-            </h2>
-          }
-        >
-          <img
-            src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1400&q=80"
-            alt="Jarvis Mission Control dashboard preview"
-            className="mx-auto rounded-2xl object-cover h-full w-full object-top"
-            draggable={false}
+      {/* Dashboard Preview — Spline 3D */}
+      <section className="relative h-screen overflow-hidden bg-[#05060B]">
+        <div className="absolute w-[130%] h-[130%]"style={{ top: '-50%', left: '8%' }}>
+          <SplineScene
+            scene="https://prod.spline.design/sTZxiFNl2DrEJozs/scene.splinecode"
+            className="w-full h-full"
           />
-        </ContainerScroll>
+        </div>
       </section>
 
       {/* How it works — Animated Beam */}
