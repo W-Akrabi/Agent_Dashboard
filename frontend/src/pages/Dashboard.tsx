@@ -38,6 +38,7 @@ const defaultSpendData: SpendData = {
   daily: 0,
   monthly: 0,
   budget: 1000,
+  alertWebhookUrl: null,
   agentBreakdown: [],
 };
 

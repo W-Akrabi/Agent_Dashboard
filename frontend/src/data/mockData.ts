@@ -194,6 +194,7 @@ export const mockSpendData: SpendData = {
   daily: 12.45,
   monthly: 751.35,
   budget: 1000,
+  alertWebhookUrl: null,
   agentBreakdown: [
     { agentId: 'agent-003', agentName: 'Data Processor', spend: 245.80 },
     { agentId: 'agent-005', agentName: 'Content Generator', spend: 178.90 },
