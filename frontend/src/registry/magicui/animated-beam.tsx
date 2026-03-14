@@ -1,4 +1,4 @@
-import { RefObject, useEffect, useId, useState } from 'react';
+import { type RefObject, useEffect, useId, useState } from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 

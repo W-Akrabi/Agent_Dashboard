@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getCommsAgents, getCommsMessages, getSseToken, sendCommsMessage } from '@/lib/api';
 import { useInvalidation } from '@/contexts/InvalidationContext';
-import type { CommsAgentSummary, CommsMessage } from '@/types';
+import type { CommsAgentSummary, CommsMessage } from '@/types/index';
 
 const _API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8000';
 

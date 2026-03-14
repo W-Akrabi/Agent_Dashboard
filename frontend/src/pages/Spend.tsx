@@ -106,7 +106,6 @@ export default function Spend() {
   };
 
   const alert = alertConfig[getAlertLevel()];
-  const AlertIcon = alert.icon;
 
   if (isLoading) {
     return (
