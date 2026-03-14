@@ -682,29 +682,6 @@ def delete_agent(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@app.delete(
-    "/v1/agents/{agent_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-    response_class=Response,
-)
-def delete_agent(
-    agent_id: UUID,
-    auth_user: AuthenticatedUser = Depends(_require_user_auth),
-    connection: Connection[dict[str, Any]] = Depends(get_db),
-) -> Response:
-    deleted = connection.execute(
-        """
-        delete from agents
-        where id = %s::uuid and workspace_id = %s::uuid
-        returning id
-        """,
-        (agent_id, auth_user.workspace_id),
-    ).fetchone()
-    if deleted is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found.")
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
-
-
 @app.post(
     "/v1/agents/{agent_id}/revoke-token",
     status_code=status.HTTP_204_NO_CONTENT,
