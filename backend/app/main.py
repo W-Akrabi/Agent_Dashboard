@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import secrets
 import ssl
+import threading
 import time
 from collections import defaultdict
 from contextlib import asynccontextmanager
@@ -34,6 +35,7 @@ from .schemas import (
     AgentResponse,
     AgentStatusUpdateRequest,
     AgentTokenRevealResponse,
+    BudgetAlertWebhookUpdateRequest,
     BudgetUpdateRequest,
     CommandResponse,
     CommsAgentSummary,
@@ -116,6 +118,86 @@ def _to_float(value: Decimal | float | int | None) -> float:
     if isinstance(value, Decimal):
         return float(value)
     return float(value)
+
+
+# ── Budget alert helpers ───────────────────────────────────────────────────────
+
+def _fire_budget_alert(url: str, threshold_pct: int, monthly: float, budget: float, workspace_id: str) -> None:
+    """POST a budget alert to the configured webhook URL in a background thread."""
+    import urllib.request
+    import json as _json
+    body = _json.dumps({
+        "event": "budget_alert",
+        "threshold_pct": threshold_pct,
+        "monthly_spend": round(monthly, 6),
+        "budget": round(budget, 2),
+        "workspace_id": workspace_id,
+    }).encode()
+    req = urllib.request.Request(
+        url,
+        data=body,
+        headers={"Content-Type": "application/json", "User-Agent": "jarvis-mc-alerts/1.0"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10):
+            pass
+    except Exception as exc:
+        logger.warning("Budget alert webhook failed (%s): %s", url, exc)
+
+
+def _check_and_fire_budget_alert(
+    connection: Connection[dict[str, Any]],
+    workspace_id: UUID,
+    monthly_spend: float,
+    monthly_budget: float,
+) -> None:
+    """After an event is ingested, check if a budget alert threshold was just crossed and fire if so."""
+    if monthly_budget <= 0:
+        return
+
+    row = connection.execute(
+        """
+        select budget_alert_webhook_url, budget_alert_sent_pct, budget_alert_sent_month
+        from users
+        where workspace_id = %s::uuid
+        limit 1
+        """,
+        (workspace_id,),
+    ).fetchone()
+    if row is None or not row["budget_alert_webhook_url"]:
+        return
+
+    url: str = row["budget_alert_webhook_url"]
+    current_month = datetime.now(timezone.utc).strftime("%Y-%m")
+    # If this is a new calendar month, treat last sent as 0 so alerts re-fire
+    sent_pct: int = row["budget_alert_sent_pct"] if row["budget_alert_sent_month"] == current_month else 0
+
+    pct = (monthly_spend / monthly_budget) * 100
+    threshold: int | None = None
+    if pct >= 100 and sent_pct < 100:
+        threshold = 100
+    elif pct >= 80 and sent_pct < 80:
+        threshold = 80
+
+    if threshold is None:
+        return
+
+    # Persist the new sent_pct before firing (prevents duplicate fires on concurrent requests)
+    connection.execute(
+        """
+        update users
+        set budget_alert_sent_pct = %s, budget_alert_sent_month = %s
+        where workspace_id = %s::uuid
+        """,
+        (threshold, current_month, workspace_id),
+    )
+
+    threading.Thread(
+        target=_fire_budget_alert,
+        args=(url, threshold, monthly_spend, monthly_budget, str(workspace_id)),
+        daemon=True,
+    ).start()
 
 
 def _compute_agent_status(last_seen: datetime | None) -> str:
@@ -939,6 +1021,29 @@ def ingest_event(
             (agent_id,),
         )
 
+    if payload.cost and payload.cost > 0:
+        monthly_row = connection.execute(
+            """
+            select coalesce(sum(e.cost), 0)::float8 as monthly
+            from events e
+            join agents a on a.id = e.agent_id
+            where a.workspace_id = %s::uuid
+              and e.created_at >= date_trunc('month', now())
+            """,
+            (agent_workspace_id,),
+        ).fetchone()
+        budget_row = connection.execute(
+            "select monthly_budget from users where workspace_id = %s::uuid limit 1",
+            (agent_workspace_id,),
+        ).fetchone()
+        if monthly_row is not None and budget_row is not None:
+            _check_and_fire_budget_alert(
+                connection,
+                agent_workspace_id,
+                _to_float((monthly_row or {}).get("monthly", 0)),
+                _to_float(budget_row.get("monthly_budget", 0)),
+            )
+
     _sse_publish(f"events:{agent_workspace_id}", str(agent_id))
     _sse_publish(f"spend:{agent_workspace_id}")
     if payload.requiresApproval:
@@ -1005,6 +1110,29 @@ def webhook_ingest_event(
         "update agents set last_seen_at = now() where id = %s::uuid",
         (agent_id,),
     )
+
+    if payload.cost and payload.cost > 0:
+        monthly_row = connection.execute(
+            """
+            select coalesce(sum(e.cost), 0)::float8 as monthly
+            from events e
+            join agents a on a.id = e.agent_id
+            where a.workspace_id = %s::uuid
+              and e.created_at >= date_trunc('month', now())
+            """,
+            (agent_row["workspace_id"],),
+        ).fetchone()
+        budget_row = connection.execute(
+            "select monthly_budget from users where workspace_id = %s::uuid limit 1",
+            (agent_row["workspace_id"],),
+        ).fetchone()
+        if monthly_row is not None and budget_row is not None:
+            _check_and_fire_budget_alert(
+                connection,
+                agent_row["workspace_id"],
+                _to_float((monthly_row or {}).get("monthly", 0)),
+                _to_float(budget_row.get("monthly_budget", 0)),
+            )
 
     return WebhookEventResponse(ok=True, eventId=event_row["id"])
 
@@ -1184,7 +1312,7 @@ def get_spend(
 ) -> SpendResponse:
     user = connection.execute(
         """
-        select id, monthly_budget
+        select id, monthly_budget, budget_alert_webhook_url
         from users
         where id = %s::uuid and workspace_id = %s::uuid
         """,
@@ -1233,6 +1361,7 @@ def get_spend(
         daily=_to_float((daily_row or {}).get("daily", 0)),
         monthly=_to_float((monthly_row or {}).get("monthly", 0)),
         budget=_to_float(user["monthly_budget"]),
+        alertWebhookUrl=user["budget_alert_webhook_url"],
         agentBreakdown=[
             {
                 "agentId": row["agent_id"],
@@ -1253,7 +1382,7 @@ def update_budget(
     updated = connection.execute(
         """
         update users
-        set monthly_budget = %s
+        set monthly_budget = %s, budget_alert_sent_pct = 0
         where id = %s::uuid and workspace_id = %s::uuid
         returning id
         """,
@@ -1262,6 +1391,26 @@ def update_budget(
     if updated is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
     _sse_publish(f"spend:{auth_user.workspace_id}")
+    return get_spend(auth_user=auth_user, connection=connection)
+
+
+@app.patch("/v1/spend/alert-webhook", response_model=SpendResponse)
+def update_alert_webhook(
+    payload: BudgetAlertWebhookUpdateRequest,
+    auth_user: AuthenticatedUser = Depends(_require_user_auth),
+    connection: Connection[dict[str, Any]] = Depends(get_db),
+) -> SpendResponse:
+    updated = connection.execute(
+        """
+        update users
+        set budget_alert_webhook_url = %s
+        where id = %s::uuid and workspace_id = %s::uuid
+        returning id
+        """,
+        (payload.url, auth_user.id, auth_user.workspace_id),
+    ).fetchone()
+    if updated is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
     return get_spend(auth_user=auth_user, connection=connection)
 
 

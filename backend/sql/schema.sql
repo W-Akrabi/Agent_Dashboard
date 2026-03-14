@@ -75,6 +75,11 @@ CREATE TABLE IF NOT EXISTS agent_tokens (
 -- Migration: add encrypted_token to existing deployments
 ALTER TABLE agent_tokens ADD COLUMN IF NOT EXISTS encrypted_token bytea;
 
+-- Migration: budget alert columns
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS budget_alert_webhook_url text;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS budget_alert_sent_pct integer NOT NULL DEFAULT 0;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS budget_alert_sent_month text NOT NULL DEFAULT '';
+
 CREATE UNIQUE INDEX IF NOT EXISTS idx_agent_tokens_one_active
   ON agent_tokens(agent_id)
   WHERE revoked_at IS NULL;

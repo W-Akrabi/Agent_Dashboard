@@ -153,6 +153,13 @@ export function updateBudget(budget: number) {
   });
 }
 
+export function updateAlertWebhook(url: string | null) {
+  return apiRequest<SpendData>('/v1/spend/alert-webhook', {
+    method: 'PATCH',
+    body: JSON.stringify({ url }),
+  });
+}
+
 // ── Comms Hub ────────────────────────────────────────────────────────────────
 
 export function getCommsAgents() {

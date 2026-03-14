@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { DollarSign, TrendingUp, TrendingDown, AlertTriangle, Edit2, Check, X } from 'lucide-react';
 import { NotificationIcon } from '@/components/ui/animated-state-icons';
 import type { SpendData } from '@/types/index';
-import { getSpend, getSseToken, updateBudget } from '@/lib/api';
+import { getSpend, getSseToken, updateAlertWebhook, updateBudget } from '@/lib/api';
 import { useInvalidation } from '@/contexts/InvalidationContext';
 
 const _API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8000';
@@ -11,6 +11,7 @@ const defaultSpendData: SpendData = {
   daily: 0,
   monthly: 0,
   budget: 1000,
+  alertWebhookUrl: null,
   agentBreakdown: [],
 };
 
@@ -19,6 +20,9 @@ export default function Spend() {
   const [spendData, setSpendData] = useState<SpendData>(defaultSpendData);
   const [editingBudget, setEditingBudget] = useState(false);
   const [newBudget, setNewBudget] = useState(defaultSpendData.budget.toString());
+  const [editingWebhook, setEditingWebhook] = useState(false);
+  const [newWebhookUrl, setNewWebhookUrl] = useState<string>('');
+  const [savingWebhook, setSavingWebhook] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -88,6 +92,20 @@ export default function Spend() {
     } catch (saveError) {
       console.error(saveError);
       setError(saveError instanceof Error ? saveError.message : 'Failed to update budget.');
+    }
+  };
+
+  const handleSaveWebhook = async () => {
+    setSavingWebhook(true);
+    try {
+      const trimmed = newWebhookUrl.trim();
+      const updated = await updateAlertWebhook(trimmed || null);
+      setSpendData(updated);
+      setEditingWebhook(false);
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Failed to save webhook URL.');
+    } finally {
+      setSavingWebhook(false);
     }
   };
 
@@ -267,19 +285,65 @@ export default function Spend() {
       </div>
 
       <div className="data-card p-6">
-        <h3 className="font-semibold mb-4">Alert Thresholds</h3>
-        <div className="grid sm:grid-cols-3 gap-4">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold">Budget Alerts</h3>
+          {!editingWebhook && (
+            <button
+              onClick={() => {
+                setNewWebhookUrl(spendData.alertWebhookUrl ?? '');
+                setEditingWebhook(true);
+              }}
+              className="p-1 text-[#A7ACBF] hover:text-white"
+            >
+              <Edit2 className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+        <p className="text-sm text-[#A7ACBF] mb-4">
+          Receive a POST request when monthly spend crosses 80% or 100% of your budget.
+          Leave blank to disable.
+        </p>
+        {editingWebhook ? (
+          <div className="flex items-center gap-2">
+            <input
+              type="url"
+              value={newWebhookUrl}
+              onChange={(e) => setNewWebhookUrl(e.target.value)}
+              placeholder="https://your-endpoint.com/budget-alert"
+              className="flex-1 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm font-mono"
+              autoFocus
+            />
+            <button
+              onClick={() => void handleSaveWebhook()}
+              disabled={savingWebhook}
+              className="p-1.5 text-green-400 hover:bg-green-400/10 rounded disabled:opacity-50"
+            >
+              <Check className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setEditingWebhook(false)}
+              className="p-1.5 text-red-400 hover:bg-red-400/10 rounded"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 px-3 py-2 bg-white/5 rounded-lg border border-white/10">
+            {spendData.alertWebhookUrl ? (
+              <code className="text-xs font-mono text-[#A7ACBF] truncate">{spendData.alertWebhookUrl}</code>
+            ) : (
+              <span className="text-xs text-[#A7ACBF] italic">No webhook configured — click edit to add one</span>
+            )}
+          </div>
+        )}
+        <div className="grid sm:grid-cols-2 gap-3 mt-4">
           {[
-            { percent: 50, label: 'Info', color: 'bg-blue-400', desc: 'Notification sent' },
-            { percent: 80, label: 'Warning', color: 'bg-orange-400', desc: 'Email alert' },
-            { percent: 100, label: 'Critical', color: 'bg-red-400', desc: 'All agents paused' },
-          ].map((threshold) => (
-            <div key={threshold.percent} className="p-4 rounded-lg border border-white/5 bg-white/[0.02]">
-              <div className="flex items-center gap-3 mb-2">
-                <div className={`w-3 h-3 rounded-full ${threshold.color}`} />
-                <span className="font-medium">{threshold.percent}%</span>
-              </div>
-              <p className="text-sm text-[#A7ACBF]">{threshold.desc}</p>
+            { percent: 80, color: 'bg-orange-400', label: '80% — Warning alert sent' },
+            { percent: 100, color: 'bg-red-400', label: '100% — Critical alert sent' },
+          ].map((t) => (
+            <div key={t.percent} className="flex items-center gap-3 p-3 rounded-lg border border-white/5 bg-white/[0.02]">
+              <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${t.color}`} />
+              <span className="text-sm text-[#A7ACBF]">{t.label}</span>
             </div>
           ))}
         </div>

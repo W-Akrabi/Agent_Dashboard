@@ -40,6 +40,7 @@ export interface SpendData {
   daily: number;
   monthly: number;
   budget: number;
+  alertWebhookUrl: string | null;
   agentBreakdown: {
     agentId: string;
     agentName: string;

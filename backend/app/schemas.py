@@ -54,7 +54,7 @@ class AgentEventResponse(BaseModel):
 class EventIngestRequest(BaseModel):
     type: EventType
     message: str = Field(min_length=1, max_length=2000)
-    cost: float = Field(default=0, ge=0)
+    cost: float = Field(default=0, ge=0, le=10_000)
     requiresApproval: bool = False
     proposedAction: str | None = Field(default=None, max_length=2000)
     completedActions: list[str] = Field(default_factory=list)
@@ -145,10 +145,15 @@ class SpendResponse(BaseModel):
     monthly: float
     budget: float
     agentBreakdown: list[SpendBreakdownItem]
+    alertWebhookUrl: str | None = None
 
 
 class BudgetUpdateRequest(BaseModel):
     budget: float = Field(gt=0)
+
+
+class BudgetAlertWebhookUpdateRequest(BaseModel):
+    url: str | None = Field(default=None, max_length=2000)
 
 
 # ── Workshop ──────────────────────────────────────────────────────────────────
@@ -188,7 +193,7 @@ class WebhookEventRequest(BaseModel):
 
     message: str = Field(default="Agent event", max_length=2000)
     type: EventType = Field(default="action")
-    cost: float = Field(default=0.0, ge=0)
+    cost: float = Field(default=0.0, ge=0, le=10_000)
 
 
 class WebhookEventResponse(BaseModel):
