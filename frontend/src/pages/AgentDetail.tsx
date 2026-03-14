@@ -59,6 +59,7 @@ export default function AgentDetail() {
   const [revealedToken, setRevealedToken] = useState<string | null>(null);
   const [showToken, setShowToken] = useState(false);
   const [revealingToken, setRevealingToken] = useState(false);
+  const [revealLegacy, setRevealLegacy] = useState(false);
   const [copiedToken, setCopiedToken] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -180,8 +181,10 @@ export default function AgentDetail() {
       const res = await revealAgentToken(agent?.id ?? '');
       setRevealedToken(res.token);
       setShowToken(true);
-    } catch {
-      // vault not configured or legacy token — silently ignore
+    } catch (err) {
+      if (err instanceof Error && err.message.includes('before encrypted storage')) {
+        setRevealLegacy(true);
+      }
     } finally {
       setRevealingToken(false);
     }
@@ -194,7 +197,12 @@ export default function AgentDetail() {
         const res = await revealAgentToken(agent?.id ?? '');
         val = res.token;
         setRevealedToken(res.token);
-      } catch { return; }
+      } catch (err) {
+        if (err instanceof Error && err.message.includes('before encrypted storage')) {
+          setRevealLegacy(true);
+        }
+        return;
+      }
     }
     await navigator.clipboard.writeText(val);
     setCopiedToken(true);
@@ -386,9 +394,9 @@ export default function AgentDetail() {
             </code>
             <button
               onClick={() => { void handleRevealToken(); }}
-              disabled={revealingToken}
-              title={showToken ? 'Hide token' : 'Reveal token'}
-              className="flex items-center gap-1 rounded-lg border border-white/10 px-2 py-1 text-[11px] text-[#A7ACBF] hover:bg-white/5 hover:text-white transition-colors disabled:opacity-50"
+              disabled={revealingToken || revealLegacy}
+              title={revealLegacy ? 'Token not available — revoke and recreate to enable reveal' : showToken ? 'Hide token' : 'Reveal token'}
+              className="flex items-center gap-1 rounded-lg border border-white/10 px-2 py-1 text-[11px] text-[#A7ACBF] hover:bg-white/5 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {revealingToken
                 ? <span className="w-3 h-3 border border-[#A7ACBF] border-t-transparent rounded-full animate-spin" />
@@ -397,14 +405,24 @@ export default function AgentDetail() {
             </button>
             <button
               onClick={() => { void handleCopyToken(); }}
-              title="Copy token"
-              className="flex items-center gap-1 rounded-lg border border-white/10 px-2 py-1 text-[11px] text-[#A7ACBF] hover:bg-white/5 hover:text-white transition-colors"
+              disabled={revealLegacy}
+              title={revealLegacy ? 'Token not available — revoke and recreate to enable reveal' : 'Copy token'}
+              className="flex items-center gap-1 rounded-lg border border-white/10 px-2 py-1 text-[11px] text-[#A7ACBF] hover:bg-white/5 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Copy className="w-3 h-3" />
               <span>{copiedToken ? 'Copied!' : 'Copy'}</span>
             </button>
           </div>
         </div>
+        {revealLegacy && (
+          <div className="flex items-start gap-2 mb-4 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+            <span className="mt-0.5 shrink-0">⚠</span>
+            <span>
+              This agent was created before encrypted token storage was introduced — its token can&apos;t be revealed.
+              To enable reveal, <strong>revoke the token</strong> and recreate the agent once.
+            </span>
+          </div>
+        )}
 
         <div className="flex border-b border-white/10 overflow-x-auto mb-4">
           {[
